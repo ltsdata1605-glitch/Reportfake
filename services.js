@@ -169,11 +169,6 @@ function processAndDrawDashboard(data) {
     const hinhThucXuatTienMat = new Set(['Xuất bán hàng Online tại siêu thị', 'Xuất bán hàng online tiết kiệm', 'Xuất bán hàng tại siêu thị', 'Xuất bán hàng tại siêu thị (TCĐM)', 'Xuất bán Online giá rẻ', 'Xuất bán pre-order tại siêu thị', 'Xuất bán ưu đãi cho nhân viên', 'Xuất dịch vụ thu hộ bảo hiểm', 'Xuất đổi bảo hành sản phẩm IMEI', 'Xuất đổi bảo hành tại siêu thị']);
     const hinhThucXuatTraGop = new Set(['Xuất bán hàng trả góp Online', 'Xuất bán hàng trả góp Online giá rẻ', 'Xuất bán hàng trả góp online tiết kiệm', 'Xuất bán hàng trả góp tại siêu thị', 'Xuất bán hàng trả góp tại siêu thị (TCĐM)', 'Xuất bán trả góp ưu đãi cho nhân viên', 'Xuất đổi bảo hành sản phẩm trả góp có IMEI', 'Xuất bán trả góp cho NV phục vụ công việc']);
 
-    const ceSubgroupsToExtract = new Set([
-        'Máy lạnh', 'Máy nước nóng', 'Tủ lạnh', 'Tủ đông',
-        'Tủ mát', 'Máy giặt', 'Máy sấy', 'Máy rửa chén'
-    ]);
-
     App.state.validSalesData = data.filter(row => {
         const getString = (k) => (getRowValue(row, k) || '').toString().trim().toLowerCase();
         const isNotThuHo = !hinhThucXuatThuHo.has(getRowValue(row, COL.HINH_THUC_XUAT) || '');

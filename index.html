@@ -183,8 +183,11 @@
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
             <div>
-                <h1 class="text-3xl font-bold" style="color: var(--text-primary-color);">Dashboard Phân Tích Bán Hàng</h1>
-                <p style="color: var(--text-secondary-color);" class="mt-1">Dữ liệu được làm mới theo thời gian thực dựa trên tệp bạn cung cấp.</p>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-bold" style="color: var(--text-primary-color);">Dashboard Phân Tích Bán Hàng</h1>
+                    <span id="data-status-indicator" class="hidden opacity-0 text-xs font-semibold px-2.5 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full transition-opacity duration-300"></span>
+                </div>
+                <p style="color: var(--text-secondary-color);" class="mt-1">Dữ liệu được cập nhật dựa trên tệp và bộ lọc bạn cung cấp.</p>
             </div>
             <div class="flex items-center gap-4">
                 <button id="new-file-btn" class="hidden p-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2" title="Nhập file mới">
@@ -675,6 +678,7 @@
                     childToParentMap: {},
                     childToSubgroupMap: {}
                 }
+                // indicatorTimeout: null // Not using state to avoid complexity
             },
             chartInstances: {},
         };
@@ -879,6 +883,28 @@
                     statusIcon.classList.add('text-indigo-500', 'animate-spin');
             }
             lucide.createIcons();
+        }
+
+        let indicatorTimeout = null;
+        function showDataStatusIndicator() {
+            const indicator = document.getElementById('data-status-indicator');
+            if (!indicator) return;
+
+            indicator.textContent = 'Đã cập nhật';
+            indicator.classList.remove('hidden');
+            
+            // Clear any existing timeouts
+            if (indicatorTimeout) {
+                clearTimeout(indicatorTimeout);
+            }
+
+            // Use a short timeout to allow the 'hidden' class to be removed before changing opacity
+            setTimeout(() => {
+                indicator.classList.remove('opacity-0');
+                indicatorTimeout = setTimeout(() => {
+                    indicator.classList.add('opacity-0');
+                }, 2000); // Keep it visible for 2 seconds
+            }, 10);
         }
 
         // --- Utility Functions --- 
@@ -1473,6 +1499,7 @@
             drawEmployeePerformanceTable(); 
             renderSummaryTable(App.state.validSalesData); 
             document.getElementById('loading-overlay').classList.add('hidden'); 
+            showDataStatusIndicator();
             lucide.createIcons();
         } 
         
@@ -2860,10 +2887,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
