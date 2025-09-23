@@ -441,7 +441,7 @@ function buildSummaryData(data) {
         const traGopAmount = isTraGop ? revenue : 0;
 
         let currentNode = summary;
-        const path = [parentGroup, ...drilldownLevels.map(level => levelKeyslevel)];
+        const path = [parentGroup, ...drilldownLevels.map(level => levelKeys[level](row))];
 
         path.forEach((key) => {
             if (!currentNode[key]) {
@@ -1101,7 +1101,7 @@ function buildSummaryDataForModal(data, drilldownLevels) {
 
     data.forEach(row => {
         let currentNode = summary;
-        const path = drilldownLevels.map(level => levelKeyslevel);
+        const path = drilldownLevels.map(level => levelKeys[level](row));
 
         path.forEach(key => {
              if (!currentNode[key]) {

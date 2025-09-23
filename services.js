@@ -221,18 +221,7 @@ function processAndDrawDashboard(data) {
         const maNhomHang = getRowValue(row, COL.MA_NHOM_HANG);
         let mainGroup = App.state.productConfig.childToParentMap[maNhomHang];
         const childGroup = App.state.productConfig.childToSubgroupMap[maNhomHang];
-
-        // Define subgroups that should be treated as their own main group
-        const groupsToExtract = new Set([
-            'Smartphone', 'Laptop', 'Tablet', 'IT', 'Office & Virus', // From ICT
-            'Máy lọc nước', // From Gia dụng
-            'Máy lạnh', 'Máy nước nóng', 'Tủ lạnh', 'Tủ đông',
-            'Tủ mát', 'Máy giặt', 'Máy sấy', 'Máy rửa chén' // From CE
-        ]);
-
-        if (groupsToExtract.has(childGroup)) {
-            mainGroup = childGroup; // Promote the subgroup to a main group
-        }
+        // Logic to promote subgroups to main groups was removed to fix CE grouping.
 
         if (mainGroup) {
            if (!revenueByMainGroup[mainGroup]) revenueByMainGroup[mainGroup] = 0;
