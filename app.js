@@ -1135,13 +1135,14 @@ function buildSummaryData(data) {
         const isTraGop = hinhThucXuatTraGop.has(getRowValue(row, COL.HINH_THUC_XUAT) || ''); 
         const traGopAmount = isTraGop ? revenue : 0; 
 
+        const pathKeys = [parentGroup, ...drilldownLevels.map(level => levelKeyslevel)];
+        
         let currentNode = summary;
-        const path = [parentGroup, ...drilldownLevels.map(level => levelKeyslevel)];
-
-        for (const key of path) {
+        for (const key of pathKeys) {
             if (!key) {
-                break; 
+                break;
             }
+
             if (!currentNode[key]) {
                 currentNode[key] = { totalQuantity: 0, totalRevenue: 0, totalTraGop: 0, totalRevenueQD: 0, children: {} };
             }
