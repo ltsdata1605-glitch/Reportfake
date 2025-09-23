@@ -172,7 +172,9 @@ function drawIndustryGrid(sortedGroups) {
     const industryIcons = {
         'Smartphone': 'smartphone', 'Laptop': 'laptop', 'Tablet': 'tablet',
         'Phụ kiện': 'headphones', 'Gia dụng': 'sofa', 'Wearable': 'watch',
-        'CE': 'tv', 'Bảo hiểm': 'shield-check', 'Sim': 'smartphone-nfc',
+        'CE': 'tv', 'Bảo hiểm': 'shield-check', 'Sim': 'smartphone-nfc', 'Máy lạnh': 'air-vent',
+        'Máy nước nóng': 'bath', 'Tủ lạnh': 'fridge', 'Tủ đông': 'fridge', 'Tủ mát': 'fridge',
+        'Máy giặt': 'washing-machine', 'Máy sấy': 'wind', 'Máy rửa chén': 'tableware',
         'Máy lọc nước': 'droplets', 'Vieon': 'film', 'IT': 'printer', 'Office & Virus': 'file-key-2'
     };
 
