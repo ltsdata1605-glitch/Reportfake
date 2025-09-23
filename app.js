@@ -1136,18 +1136,23 @@ function buildSummaryData(data) {
         const traGopAmount = isTraGop ? revenue : 0; 
 
         let currentNode = summary;
-        const path = [parentGroup, ...drilldownLevels.map(level => levelKeys[level](row))];
+        const path = [parentGroup, ...drilldownLevels.map(level => levelKeyslevel)];
 
-        path.forEach((key) => { 
-            if (key && !currentNode[key]) {
-                currentNode[key] = { totalQuantity: 0, totalRevenue: 0, totalTraGop: 0, totalRevenueQD: 0, children: {} }; 
-            } 
-            currentNode[key].totalQuantity += quantity; 
-            currentNode[key].totalRevenue += revenue; 
+        for (const key of path) {
+            if (!key) {
+                break; 
+            }
+            if (!currentNode[key]) {
+                currentNode[key] = { totalQuantity: 0, totalRevenue: 0, totalTraGop: 0, totalRevenueQD: 0, children: {} };
+            }
+            
+            currentNode[key].totalQuantity += quantity;
+            currentNode[key].totalRevenue += revenue;
             currentNode[key].totalTraGop += traGopAmount;
             currentNode[key].totalRevenueQD += doanhThuQDRow;
-            currentNode = currentNode[key].children; 
-        }); 
+
+            currentNode = currentNode[key].children;
+        }
     }); 
     return summary; 
 } 
@@ -1575,4 +1580,526 @@ async function exportElementAsImage(element, filename, options = {}) {
         if (buttonToUpdate) {
             buttonToUpdate.disabled = false;
             buttonToUpdate.innerHTML = originalButtonContent;
-            lucide
+            lucide.createIcons();
+        }
+        loadingOverlay.classList.add('hidden');
+    }
+}
+
+// --- Control Setup Functions --- 
+
+function setupTrendChartControls() { 
+    const viewControls = document.getElementById('trend-view-controls'); 
+    viewControls.addEventListener('click', (e) => { 
+        if (e.target.tagName === 'BUTTON' && e.target.dataset.view) { 
+            viewControls.querySelector('.active')?.classList.remove('active'); 
+            e.target.classList.add('active'); 
+            App.state.trendState.view = e.target.dataset.view; 
+            drawTrendChart(); 
+        } 
+    }); 
+
+    const metricControls = document.getElementById('trend-metric-controls'); 
+    metricControls.addEventListener('click', (e) => { 
+        if (e.target.tagName === 'BUTTON' && e.target.dataset.metric) { 
+            metricControls.querySelector('.active')?.classList.remove('active'); 
+            e.target.classList.add('active'); 
+            App.state.trendState.metric = e.target.dataset.metric; 
+            drawTrendChart(); 
+        } 
+    });
+
+    document.getElementById('export-trend-chart-btn')?.addEventListener('click', (e) => { 
+        exportElementAsImage(document.getElementById('trend-chart-card'), 'xu-huong-doanh-thu.png', { 
+            buttonToUpdate: e.currentTarget, 
+            elementsToHide: ['#trend-chart-controls'] 
+        }); 
+    });
+} 
+
+function setupTableControlEvents() { 
+    document.getElementById('export-industry-btn')?.addEventListener('click', (e) => {
+        exportElementAsImage(document.getElementById('industry-card'), 'ty-trong-nganh-hang.png', {
+            buttonToUpdate: e.currentTarget,
+            elementsToHide: ['#export-industry-btn']
+        });
+    });
+
+    document.getElementById('export-summary-table-btn')?.addEventListener('click', (e) => {
+        exportElementAsImage(document.getElementById('summary-table-container'), 'chi-tiet-nganh-hang.png', {
+            buttonToUpdate: e.currentTarget,
+            elementsToHide: ['#summary-table-controls'],
+            fitContent: true
+        });
+    });
+
+
+    document.getElementById('toggle-summary-level-btn')?.addEventListener('click', (e) => { 
+        const tableBody = document.getElementById('summary-table-body');
+        const level1Rows = tableBody.querySelectorAll('.level-1'); 
+        const firstLevel2Row = tableBody.querySelector('.level-2'); 
+        const shouldExpand = !firstLevel2Row || firstLevel2Row.classList.contains('hidden'); 
+        
+        level1Rows.forEach(l1row => { 
+            l1row.classList.toggle('expanded', shouldExpand); 
+            const childrenL2 = tableBody.querySelectorAll(`[data-parent="${l1row.dataset.id}"]`); 
+            childrenL2.forEach(l2row => { 
+                l2row.classList.toggle('hidden', !shouldExpand); 
+                if (!shouldExpand) { 
+                    l2row.classList.remove('expanded'); 
+                    const descendants = tableBody.querySelectorAll(`[data-parent^="${l2row.dataset.id}"]`); 
+                    descendants.forEach(desc => desc.classList.add('hidden')); 
+                } 
+            }); 
+        }); 
+        const span = e.currentTarget.querySelector('span'); 
+        if (span) { 
+            span.textContent = shouldExpand ? 'Thu gọn' : 'Mở rộng'; 
+        }
+    }); 
+    
+    document.getElementById('summary-table-header-row')?.addEventListener('click', (e) => { 
+        const th = e.target.closest('.sortable-header'); 
+        if (!th) return; 
+        const column = th.dataset.sortBy; 
+        if (App.state.summaryTableSortState.column === column) { 
+            App.state.summaryTableSortState.direction = App.state.summaryTableSortState.direction === 'asc' ? 'desc' : 'asc'; 
+        } else { 
+            App.state.summaryTableSortState.column = column; 
+            App.state.summaryTableSortState.direction = 'desc'; 
+        } 
+        renderSummaryTable(App.state.validSalesData, { repopulateParent: false, repopulateChild: false, preserveState: true }); 
+    }); 
+    
+    document.querySelector('[data-filter-panel="summary-nhom-cha"]')?.addEventListener('change', () => { 
+        App.state.summaryTableLocalFilters.parent = getSelectedCheckboxes('summary-nhom-cha'); 
+        App.state.summaryTableLocalFilters.child = []; 
+        renderSummaryTable(App.state.validSalesData, { repopulateParent: false, repopulateChild: true }); 
+        updateFilterLabel('summary-nhom-cha', 'Ngành'); 
+        updateFilterLabel('summary-nhom-con', 'Nhóm'); 
+    }); 
+
+    document.querySelector('[data-filter-panel="summary-nhom-con"]')?.addEventListener('change', () => { 
+        App.state.summaryTableLocalFilters.child = getSelectedCheckboxes('summary-nhom-con'); 
+        renderSummaryTable(App.state.validSalesData, { repopulateParent: false, repopulateChild: false }); 
+        updateFilterLabel('summary-nhom-con', 'Nhóm'); 
+    }); 
+    
+    document.getElementById('summary-drilldown-order-controls').addEventListener('click', (e) => { 
+        if (e.target.tagName === 'BUTTON' && e.target.dataset.order) { 
+            e.currentTarget.querySelector('.active')?.classList.remove('active'); 
+            e.target.classList.add('active'); 
+            App.state.summaryTableDrilldownOrder = e.target.dataset.order.split(','); 
+            renderSummaryTable(App.state.validSalesData, { repopulateParent: false, repopulateChild: false, preserveState: true }); 
+        } 
+    }); 
+} 
+
+function setupEmployeeAnalysisTabs() { 
+    const tabTopSeller = document.getElementById('tab-top-seller'); 
+    const tabAllEmployees = document.getElementById('tab-all-employees'); 
+    const contentTopSeller = document.getElementById('top-seller-content'); 
+    const contentAllEmployees = document.getElementById('all-employees-content'); 
+    
+    const toggleAllSellersBtn = document.getElementById('toggle-all-sellers-btn');
+    const toggleAllPerformersBtn = document.getElementById('toggle-all-performers-btn');
+    
+    tabTopSeller.addEventListener('click', () => { 
+        tabTopSeller.classList.add('active'); 
+        tabAllEmployees.classList.remove('active'); 
+        contentTopSeller.classList.remove('hidden'); 
+        contentAllEmployees.classList.add('hidden'); 
+    }); 
+
+    tabAllEmployees.addEventListener('click', () => { 
+        tabAllEmployees.classList.add('active'); 
+        tabTopSeller.classList.remove('active'); 
+        contentAllEmployees.classList.remove('hidden'); 
+        contentTopSeller.classList.add('hidden'); 
+    }); 
+    
+    toggleAllSellersBtn.addEventListener('click', () => { 
+        App.state.showingAllSellers = !App.state.showingAllSellers; 
+        toggleAllSellersBtn.textContent = App.state.showingAllSellers ? 'Ẩn bớt' : 'Hiện All';
+        drawTopSellerTable(); 
+    });
+
+   toggleAllPerformersBtn.addEventListener('click', () => {
+       App.state.showingAllPerformers = !App.state.showingAllPerformers;
+       drawEmployeePerformanceTable();
+   });
+
+    document.getElementById('perf-summary-header')?.addEventListener('click', (e) => {
+        const th = e.target.closest('.sortable-header');
+        if (!th) return;
+        const column = th.dataset.sortBy;
+        if (App.state.employeeSortState.column === column) {
+            App.state.employeeSortState.direction = App.state.employeeSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            App.state.employeeSortState.column = column;
+            App.state.employeeSortState.direction = 'desc';
+        }
+        drawEmployeePerformanceTable();
+    });
+
+    document.getElementById('export-top-sellers-btn')?.addEventListener('click', (e) => {
+        exportElementAsImage(document.getElementById('top-seller-content'), 'top-best-sellers.png', { buttonToUpdate: e.currentTarget, elementsToHide: ['#top-seller-content .flex .gap-2'], fitContent: true });
+    });
+
+    document.getElementById('export-employee-table-btn')?.addEventListener('click', (e) => {
+        exportElementAsImage(document.getElementById('all-employees-content'), 'bang-hieu-suat.png', { buttonToUpdate: e.currentTarget, elementsToHide: ['#all-employees-content .flex .gap-2'], fitContent: true });
+    });
+} 
+
+function setupPerformanceModalTabs() { 
+    const perfTabTransactions = document.getElementById('perf-tab-transactions'); 
+    const perfTabIndustry = document.getElementById('perf-tab-industry'); 
+    const perfContentTransactions = document.getElementById('perf-content-transactions'); 
+    const perfContentIndustry = document.getElementById('perf-content-industry'); 
+
+    perfTabTransactions?.addEventListener('click', () => { 
+        perfTabTransactions.classList.add('active'); 
+        perfTabIndustry.classList.remove('active'); 
+        perfContentTransactions.classList.remove('hidden'); 
+        perfContentIndustry.classList.add('hidden'); 
+    }); 
+
+    perfTabIndustry?.addEventListener('click', () => { 
+        perfTabIndustry.classList.add('active'); 
+        perfTabTransactions.classList.remove('active'); 
+        perfContentIndustry.classList.remove('hidden'); 
+        perfContentTransactions.classList.add('hidden'); 
+    }); 
+} 
+
+function renderPerfSummaryTable(employeeName) { 
+    const tableBody = document.querySelector('#performance-modal #perf-summary-table-body'); 
+    const tableFooter = document.querySelector('#performance-modal #perf-summary-table-footer'); 
+    if (!tableBody || !tableFooter) return; 
+    
+    const employeeData = App.state.validSalesData.filter(row => getRowValue(row, COL.NGUOI_TAO) === employeeName); 
+    const summaryData = buildSummaryData(employeeData); 
+    const sortedSummary = sortSummaryData(summaryData, 'totalRevenue', 'desc'); 
+    
+    tableBody.innerHTML = buildSummaryTableHTML(sortedSummary); 
+    attachSummaryTableEventListeners(tableBody); 
+    
+    const grandTotal = Object.values(summaryData).reduce((acc, curr) => { 
+        acc.totalQuantity += curr.totalQuantity; 
+        acc.totalRevenue += curr.totalRevenue;
+        acc.totalRevenueQD += curr.totalRevenueQD;
+        acc.totalTraGop += curr.totalTraGop; 
+        return acc; 
+    }, {totalQuantity: 0, totalRevenue: 0, totalTraGop: 0, totalRevenueQD: 0}); 
+    
+    const gtAOV = grandTotal.totalQuantity > 0 ? grandTotal.totalRevenue / grandTotal.totalQuantity : 0; 
+    const gtTGP = grandTotal.totalRevenue > 0 ? (grandTotal.totalTraGop / grandTotal.totalRevenue) * 100 : 0; 
+    tableFooter.innerHTML = `<tr>
+        <td class="px-6 py-4 text-sm text-slate-900 dark:text-slate-100 font-bold">TỔNG CỘNG</td>
+        <td class="px-6 py-4 text-sm text-slate-700 dark:text-slate-200 text-right font-bold">${grandTotal.totalQuantity.toLocaleString('vi-VN')}</td>
+        <td class="px-6 py-4 text-sm text-slate-800 dark:text-slate-100 text-right font-bold">${formatCurrency(grandTotal.totalRevenue)}</td>
+        <td class="px-6 py-4 text-sm text-indigo-600 dark:text-indigo-400 text-right font-extrabold">${formatCurrency(grandTotal.totalRevenueQD)}</td>
+        <td class="px-6 py-4 text-sm text-slate-700 dark:text-slate-200 text-right font-bold">${formatCurrency(gtAOV, 1)}</td>
+        <td class="px-6 py-4 text-sm text-slate-700 dark:text-slate-200 text-right font-bold">${gtTGP.toFixed(0)}%</td>
+    </tr>`; 
+    lucide.createIcons();
+} 
+
+function setupGlobalControlEvents() { 
+    document.getElementById('export-page-btn')?.addEventListener('click', (e) => { 
+        exportElementAsImage(document.getElementById('dashboard-container'), 'dashboard.png', { 
+            buttonToUpdate: e.currentTarget, 
+            elementsToHide: ['#export-page-btn']
+        }); 
+    }); 
+
+    dom.newFileBtn.addEventListener('click', () => {
+        dom.fileUploadInput.click();
+    });
+
+    document.getElementById('unshipped-kpi-card')?.addEventListener('click', showUnshippedOrdersModal);
+
+    document.getElementById('export-unshipped-orders-btn')?.addEventListener('click', (e) => {
+        exportElementAsImage(document.getElementById('unshipped-orders-modal-body'), 'don-hang-cho-xuat.png', { buttonToUpdate: e.currentTarget, forceOpenDetails: true, elementsToHide: ['.export-creator-btn'] });
+    });
+
+    document.getElementById('export-industry-detail-btn')?.addEventListener('click', (e) => {
+        const title = document.getElementById('industry-detail-modal-title').textContent.trim();
+        exportElementAsImage(document.getElementById('industry-detail-modal-body'), `chi-tiet-nganh-${title}.png`, { buttonToUpdate: e.currentTarget, forceOpenDetails: true });
+    });
+} 
+
+// --- NEW FEATURES ---
+
+function showUnshippedOrdersModal() {
+    const modal = document.getElementById('unshipped-orders-modal');
+    const modalBody = document.getElementById('unshipped-orders-modal-body');
+    modalBody.innerHTML = '';
+
+    const unshippedData = App.state.filteredData.filter(row => {
+         const getString = (k) => (getRowValue(row, k) || '').toString().trim().toLowerCase();
+         return getRowValue(row, COL.XUAT) === 'Chưa xuất' &&
+             getString(COL.TRANG_THAI_HUY) === 'chưa hủy' &&
+             getString(COL.TINH_TRANG_NHAP_TRA) === 'chưa trả' &&
+             (Number(getRowValue(row, COL.PRICE)) || 0) > 0;
+    });
+    
+    if (unshippedData.length === 0) {
+        modalBody.innerHTML = '<p class="text-center text-slate-500 dark:text-slate-400 p-4">Không có đơn hàng nào chờ xuất.</p>';
+    } else {
+         const groupedByCreator = unshippedData.reduce((acc, row) => {
+            const creator = getRowValue(row, COL.NGUOI_TAO) || 'Không xác định';
+            if (!acc[creator]) acc[creator] = { orders: [], totalRevenue: 0 };
+            const price = Number(getRowValue(row, COL.PRICE)) || 0;
+            acc[creator].orders.push(row);
+            acc[creator].totalRevenue += price;
+            return acc;
+        }, {});
+
+        const sortedCreators = Object.entries(groupedByCreator)
+            .filter(([_, data]) => data.totalRevenue > 0)
+            .sort((a, b) => b[1].totalRevenue - a[1].totalRevenue);
+        
+        const accordionContainer = document.createElement('div');
+        accordionContainer.className = 'space-y-2';
+
+        sortedCreators.forEach(([creator, creatorData]) => {
+            const creatorId = `creator-details-${creator.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const orders = creatorData.orders;
+            const totalCreatorRevenue = creatorData.totalRevenue;
+
+            const groupedByCustomer = orders.reduce((acc, row) => {
+                const customer = getRowValue(row, COL.CUSTOMER_NAME) || 'Khách lẻ';
+                if (!acc[customer]) acc[customer] = { orders: [], totalRevenue: 0 };
+                const price = Number(getRowValue(row, COL.PRICE)) || 0;
+                acc[customer].orders.push(row);
+                acc[customer].totalRevenue += price;
+                return acc;
+            }, {});
+
+            const creatorDetails = document.createElement('details');
+            creatorDetails.id = creatorId;
+            creatorDetails.className = 'bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 open:shadow-lg';
+            let customerHTML = '';
+
+            Object.entries(groupedByCustomer).sort((a,b) => b[1].totalRevenue - a[1].totalRevenue).forEach(([customer, customerData]) => {
+                customerHTML += `
+                <details class="ml-4 my-2 border-l-2 border-slate-200 dark:border-slate-600">
+                     <summary class="p-2 pl-3 font-semibold cursor-pointer flex justify-between items-center text-slate-700 dark:text-slate-200">
+                        <span>${customer}</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Tổng DT: <strong class="text-indigo-600 dark:text-indigo-400">${formatCurrency(customerData.totalRevenue)}</strong></span>
+                            <i data-lucide="chevron-down" class="accordion-icon transition-transform w-4 h-4"></i>
+                        </div>
+                    </summary>
+                    <div class="border-t border-slate-200 dark:border-slate-700 overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-slate-50 dark:bg-slate-700/50">
+                                <tr>
+                                    <th class="p-2 text-left font-semibold text-slate-500 dark:text-slate-300 text-xs">Ngày tạo</th>
+                                    <th class="p-2 text-left font-semibold text-slate-500 dark:text-slate-300 text-xs">Sản phẩm</th>
+                                    <th class="p-2 text-center font-semibold text-slate-500 dark:text-slate-300 text-xs">SL</th>
+                                    <th class="p-2 text-right font-semibold text-slate-500 dark:text-slate-300 text-xs">DT Thực</th>
+                                    <th class="p-2 text-right font-semibold text-slate-500 dark:text-slate-300 text-xs">DTQĐ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${customerData.orders.map(row => {
+                                    const price = Number(getRowValue(row, COL.PRICE)) || 0;
+                                    const heSo = getHeSoQuyDoi(getRowValue(row, COL.MA_NGANH_HANG), getRowValue(row, COL.MA_NHOM_HANG));
+                                    const revenueQD = price * heSo;
+                                    return `
+                                    <tr class="border-b border-slate-100 dark:border-slate-700 last:border-b-0">
+                                        <td class="p-2 whitespace-nowrap text-xs">${row.parsedDate.toLocaleDateString('vi-VN')}</td>
+                                        <td class="p-2 text-xs">${getRowValue(row, COL.PRODUCT)}</td>
+                                        <td class="p-2 text-center text-xs">${getRowValue(row, COL.QUANTITY)}</td>
+                                        <td class="p-2 text-right text-xs">${formatCurrency(price)}</td>
+                                        <td class="p-2 text-right text-xs font-semibold text-indigo-500">${formatCurrency(revenueQD)}</td>
+                                    </tr>`
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                `;
+            });
+
+            creatorDetails.innerHTML = `
+                <summary class="p-4 font-bold cursor-pointer flex justify-between items-center text-slate-800 dark:text-slate-100">
+                    <span class="flex-1 min-w-0 truncate">${creator}</span>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <button title="Xuất ảnh của nhân viên này" class="export-creator-btn p-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200" data-creator-id="${creatorId}" data-creator-name="${creator}">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </button>
+                        <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng DT: <strong class="text-indigo-600 dark:text-indigo-400">${formatCurrency(totalCreatorRevenue)}</strong></span>
+                        <i data-lucide="chevron-down" class="accordion-icon transition-transform"></i>
+                    </div>
+                </summary>
+                <div class="p-2 border-t border-slate-200 dark:border-slate-700">
+                    ${customerHTML}
+                </div>
+            `;
+            accordionContainer.appendChild(creatorDetails);
+        });
+        modalBody.appendChild(accordionContainer);
+    }
+
+    document.getElementById('toggle-all-unshipped-btn')?.addEventListener('click', (e) => {
+        const details = modalBody.querySelectorAll('details');
+        const shouldOpen = e.target.textContent.includes('Hiện');
+        details.forEach(detail => detail.open = shouldOpen);
+        e.target.textContent = shouldOpen ? 'Ẩn tất cả' : 'Hiện tất cả';
+    });
+    
+    modalBody.querySelectorAll('.export-creator-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const creatorId = e.currentTarget.dataset.creatorId;
+            const creatorName = e.currentTarget.dataset.creatorName;
+            const elementToExport = document.getElementById(creatorId);
+            exportElementAsImage(elementToExport, `cho-xuat-${creatorName}.png`, { buttonToUpdate: e.currentTarget, forceOpenDetails: true, elementsToHide: ['.export-creator-btn'] });
+        });
+    });
+    
+    lucide.createIcons();
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+    }, 10);
+}
+
+function showIndustryDetailModal(groupName) {
+    const modal = document.getElementById('industry-detail-modal');
+    const modalBody = document.getElementById('industry-detail-modal-body');
+    const modalTitle = document.getElementById('industry-detail-modal-title');
+    
+    modalTitle.textContent = groupName;
+    
+    const renderTable = () => {
+        const container = document.getElementById('industry-detail-modal-body');
+        const activeToggle = document.querySelector('#industry-detail-toggle button.active');
+        const drilldownOrder = activeToggle.dataset.order.split(',');
+        
+        const industryData = App.state.validSalesData.filter(row => App.state.productConfig.childToParentMap[getRowValue(row, COL.MA_NHOM_HANG)] === groupName);
+        
+        const specialGroups = ['Smartphone', 'Laptop', 'Máy lọc nước'];
+        const hasSubgroups = !specialGroups.includes(groupName) && App.state.productConfig.subgroups[groupName] && Object.keys(App.state.productConfig.subgroups[groupName]).length > 0;
+        
+        const finalDrilldownLevels = hasSubgroups ? ['subgroup', ...drilldownOrder, 'product'] : [...drilldownOrder, 'product'];
+
+        const detailData = buildSummaryDataForModal(industryData, finalDrilldownLevels);
+        const tableHTML = buildDetailTableHTML(detailData);
+
+        container.innerHTML = tableHTML ? `<div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">${tableHTML}</div>` : '<p class="text-center text-slate-500 dark:text-slate-400">Không có dữ liệu chi tiết.</p>';
+        attachSummaryTableEventListeners(container);
+        lucide.createIcons();
+    };
+    
+    const toggle = document.getElementById('industry-detail-toggle');
+    // Clone and replace to remove old event listeners
+    const newToggle = toggle.cloneNode(true);
+    toggle.parentNode.replaceChild(newToggle, toggle);
+    
+    newToggle.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' && !e.target.classList.contains('active')) {
+            newToggle.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            renderTable();
+        }
+    });
+
+    renderTable();
+    
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+    }, 10);
+}
+
+function buildSummaryDataForModal(data, drilldownLevels) {
+    const summary = {};
+    const hinhThucXuatTraGop = new Set(['Xuất bán hàng trả góp Online', 'Xuất bán hàng trả góp Online giá rẻ', 'Xuất bán hàng trả góp online tiết kiệm', 'Xuất bán hàng trả góp tại siêu thị', 'Xuất bán hàng trả góp tại siêu thị (TCĐM)', 'Xuất bán trả góp ưu đãi cho nhân viên', 'Xuất đổi bảo hành sản phẩm trả góp có IMEI', 'Xuất bán trả góp cho NV phục vụ công việc']); 
+    const levelKeys = { 
+        subgroup: (row) => App.state.productConfig.childToSubgroupMap[getRowValue(row, COL.MA_NHOM_HANG)] || 'Khác', 
+        manufacturer: (row) => getRowValue(row, COL.MANUFACTURER) || 'Không rõ', 
+        creator: (row) => getRowValue(row, COL.NGUOI_TAO) || 'Không rõ', 
+        product: (row) => getRowValue(row, COL.PRODUCT) || 'Không rõ', 
+    }; 
+
+    data.forEach(row => {
+        let currentNode = summary;
+        const path = drilldownLevels.map(level => levelKeyslevel);
+
+        for (const key of path) {
+             if (!key) {
+                break;
+             }
+             if (!currentNode[key]) { 
+                currentNode[key] = { totalQuantity: 0, totalRevenue: 0, totalTraGop: 0, totalRevenueQD: 0, children: {} }; 
+            } 
+            const price = Number(getRowValue(row, COL.PRICE)) || 0;
+            const quantity = Number(getRowValue(row, COL.QUANTITY)) || 0;
+            const heSo = getHeSoQuyDoi(getRowValue(row, COL.MA_NGANH_HANG), getRowValue(row, COL.MA_NHOM_HANG));
+            
+            currentNode[key].totalQuantity += quantity;
+            currentNode[key].totalRevenue += price; 
+            currentNode[key].totalRevenueQD += price * heSo; 
+            if (hinhThucXuatTraGop.has(getRowValue(row, COL.HINH_THUC_XUAT))) {
+                currentNode[key].totalTraGop += price;
+            }
+            currentNode = currentNode[key].children; 
+        }
+    });
+    return summary;
+}
+
+function buildDetailTableHTML(summaryData) {
+    if (Object.keys(summaryData).length === 0) return '';
+    const header = `
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead class="bg-slate-50 dark:bg-slate-800"><tr>
+                <th class="px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Chi Tiết</th>
+                <th class="px-6 py-3 text-right text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">S.Lượng</th>
+                <th class="px-6 py-3 text-right text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">D.Thu</th>
+                <th class="px-6 py-3 text-right text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">DTQĐ</th>
+                <th class="px-6 py-3 text-right text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">GTĐH</th>
+            </tr></thead>
+            <tbody class="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                ${buildDetailRowsRecursive(summaryData, 1, 'detail-root')}
+            </tbody>
+        </table>`;
+    return header;
+}
+
+function buildDetailRowsRecursive(node, level, parentId) {
+    let html = '';
+    const sortedKeys = Object.keys(node).sort((a, b) => node[b].totalRevenue - node[a].totalRevenue);
+
+    for (const key of sortedKeys) {
+        const data = node[key];
+        const hasChildren = Object.keys(data.children).length > 0;
+        const aov = data.totalQuantity > 0 ? data.totalRevenue / data.totalQuantity : 0;
+        const currentId = `${parentId}-${key.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        const isExpandable = level < 4 && hasChildren;
+        const toggleIcon = `<span class="toggle-icon inline-block mr-2 text-slate-400"><i data-lucide="chevron-right" class="w-4 h-4"></i></span>`;
+
+        html += `<tr class="summary-table-row level-${level} ${isExpandable ? 'expandable' : ''} ${level > 1 ? 'hidden' : ''}" data-id="${currentId}" data-parent="${parentId}" data-level="${level}">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-200" style="padding-left: ${0.75 + (level - 1) * 1.5}rem;">
+                <div class="flex items-center">${isExpandable ? toggleIcon : ''}${key}</div>
+            </td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600 dark:text-slate-300">${data.totalQuantity.toLocaleString('vi-VN')}</td>
+            <td class="px-6 py-4 text-right text-sm text-slate-800 dark:text-slate-100 font-medium">${formatCurrency(data.totalRevenue)}</td>
+            <td class="px-6 py-4 text-right text-sm font-medium text-indigo-600 dark:text-indigo-400">${formatCurrency(data.totalRevenueQD)}</td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600 dark:text-slate-300">${formatCurrency(aov, 1)}</td>
+        </tr>`;
+        if (hasChildren) {
+            html += buildDetailRowsRecursive(data.children, level + 1, currentId);
+        }
+    }
+    return html;
+}
+
+// --- Initialize the page ---
+window.addEventListener('load', initializePage);
