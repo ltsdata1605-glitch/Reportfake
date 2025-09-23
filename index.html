@@ -185,7 +185,7 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-3xl font-bold" style="color: var(--text-primary-color);">Dashboard Phân Tích Bán Hàng</h1>
-                    <span class="text-xs font-semibold px-2.5 py-1 bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200 rounded-full">v5.3</span>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200 rounded-full">v5.4</span>
                     <span id="data-status-indicator" class="hidden opacity-0 text-xs font-semibold px-2.5 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full transition-opacity duration-300"></span>
                 </div>
                 <p style="color: var(--text-secondary-color);" class="mt-1">Dữ liệu được cập nhật dựa trên tệp và bộ lọc bạn cung cấp.</p>
@@ -523,7 +523,7 @@
             </main>
             
             <footer id="footer-section" class="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                <p>Dashboard được cung cấp bởi 21707 - Ver 5.3 Ultra HD Export</p>
+                <p>Dashboard được cung cấp bởi 21707 - Ver 5.4 Ultra HD Export (Fix CE)</p>
                 <p id="last-updated" class="mt-1"></p>
             </footer>
         </div>
@@ -1394,15 +1394,16 @@
                 let mainGroup = App.state.productConfig.childToParentMap[maNhomHang];
                 const childGroup = App.state.productConfig.childToSubgroupMap[maNhomHang];
 
-                // Special handling for ICT and Gia dụng
-                if (mainGroup === 'ICT') {
-                    if (childGroup === 'Smartphone' || childGroup === 'Laptop' || childGroup === 'Tablet') {
-                        mainGroup = childGroup; // Re-assign mainGroup to the specific subgroup
-                    } else {
-                        mainGroup = null; // Ignore other ICT products
-                    }
-                } else if (mainGroup === 'Gia dụng' && childGroup === 'Máy lọc nước') {
-                    mainGroup = 'Máy lọc nước';
+                // Define subgroups that should be treated as their own main group
+                const groupsToExtract = new Set([
+                    'Smartphone', 'Laptop', 'Tablet', 'IT', 'Office & Virus', // From ICT
+                    'Máy lọc nước', // From Gia dụng
+                    'Máy lạnh', 'Máy nước nóng', 'Tủ lạnh', 'Tủ đông',
+                    'Tủ mát', 'Máy giặt', 'Máy sấy', 'Máy rửa chén' // From CE
+                ]);
+
+                if (groupsToExtract.has(childGroup)) {
+                    mainGroup = childGroup; // Promote the subgroup to a main group
                 }
 
                 if (mainGroup) {
@@ -1659,7 +1660,9 @@
             const industryIcons = {
                 'Smartphone': 'smartphone', 'Laptop': 'laptop', 'Tablet': 'tablet',
                 'Phụ kiện': 'headphones', 'Gia dụng': 'sofa', 'Wearable': 'watch',
-                'CE': 'tv', 'Bảo hiểm': 'shield-check', 'Sim': 'smartphone-nfc',
+                'CE': 'tv', 'Bảo hiểm': 'shield-check', 'Sim': 'smartphone-nfc', 'Máy lạnh': 'air-vent',
+                'Máy nước nóng': 'bath', 'Tủ lạnh': 'fridge', 'Tủ đông': 'fridge', 'Tủ mát': 'fridge',
+                'Máy giặt': 'washing-machine', 'Máy sấy': 'wind', 'Máy rửa chén': 'tableware',
                 'Máy lọc nước': 'droplets', 'Vieon': 'film', 'IT': 'printer', 'Office & Virus': 'file-key-2'
             };
 
