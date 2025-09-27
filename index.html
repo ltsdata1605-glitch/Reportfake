@@ -1939,7 +1939,14 @@
 
             data.forEach(row => { 
                 const parentGroup = levelKeys.parentGroup(row); 
-                if (!parentGroup) return; 
+                const childGroup = levelKeys.smartGroup(row);
+
+                // Điều chỉnh logic: Chỉ bỏ qua các nhóm con không mong muốn của ICT,
+                // không bỏ qua toàn bộ parentGroup.
+                if (parentGroup === 'ICT' && !['Smartphone', 'Laptop', 'Tablet'].includes(childGroup)) {
+                    return; // Bỏ qua các nhóm con khác của ICT
+                }
+                if (!parentGroup) return; // Bỏ qua nếu không có nhóm cha
 
                 const quantity = Number(getRowValue(row, COL.QUANTITY)) || 0; 
                 const revenue = Number(getRowValue(row, COL.PRICE)) || 0; 
