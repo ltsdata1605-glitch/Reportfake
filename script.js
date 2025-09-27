@@ -129,13 +129,20 @@ async function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Get loading overlay elements
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+
+    // Show loading overlay
+    loadingText.textContent = 'Bắt đầu xử lý...';
+    loadingOverlay.classList.remove('hidden');
+
     dashboardWrapper.style.display = 'none';
     uploadContainer.style.display = 'none';
     newFileBtn.classList.add('hidden');
-    statusContainer.classList.remove('hidden');
-    progressBar.style.width = '0%';
     
     try {
+        loadingText.textContent = 'Đang tải file cấu hình...';
         await loadConfigFromSheet();
         
         showMessage(`Đang đọc file "${file.name}"...`);
@@ -143,6 +150,7 @@ async function handleFile(e) {
         
         showMessage('Đọc file thành công. Bắt đầu xử lý dữ liệu...');
         
+        loadingText.textContent = 'Đang phân tích dữ liệu...';
         setTimeout(() => { // Use setTimeout to allow UI to update
             const workbook = XLSX.read(data, { type: 'array', cellDates: true });
             let jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
@@ -177,15 +185,20 @@ async function handleFile(e) {
 
             setTimeout(() => {
                 dashboardWrapper.classList.add('loaded');
-                statusContainer.classList.add('hidden');
+                        // Hide the overlay after everything is rendered
+                        loadingOverlay.classList.add('hidden');
             }, 100);
 
         }, 200);
 
     } catch (error) {
         showMessage(`${error.message}`, 'error');
+        statusContainer.classList.remove('hidden'); // Show status container for error message
+        progressBar.style.width = '0%';
         fileUploadInput.value = ''; // Reset file input
         uploadContainer.style.display = 'block'; // Show upload screen again
+        // Hide the overlay on error
+        loadingOverlay.classList.add('hidden');
     }
 }
 
@@ -2200,4 +2213,3 @@ function buildDetailRowsRecursive(node, level, parentId) {
 
 // --- Initialize the page ---
 window.addEventListener('load', initializePage);
-
