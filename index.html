@@ -209,13 +209,13 @@
 
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-            <div class="relative group">
+            <div class="relative">
                 <div class="flex items-center gap-3">
                     <h1 class="text-3xl font-bold" style="color: var(--text-primary-color);">Dashboard Phân Tích Bán Hàng</h1>
-                    <span class="cursor-pointer text-xs font-semibold align-middle bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 px-2.5 py-1 rounded-full">v1.0</span>
+                    <span id="version-badge" class="cursor-pointer text-xs font-semibold align-middle bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 px-2.5 py-1 rounded-full">v1.1</span>
                 </div>
                 <!-- Tooltip Lịch sử phiên bản -->
-                <div class="absolute left-0 bottom-full mb-2 w-80 hidden group-hover:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 z-10">
+                <div id="version-tooltip" class="absolute left-0 bottom-full mb-2 w-80 hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 z-10">
                     <h4 class="font-bold text-slate-800 dark:text-slate-100 mb-2">Lịch sử phiên bản</h4>
                     <ul class="space-y-3 text-sm max-h-60 overflow-y-auto">
                         <li class="border-b border-slate-200 dark:border-slate-700 pb-2">
@@ -224,6 +224,10 @@
                                 - Khởi tạo dashboard và các tính năng phân tích cơ bản. <br>
                                 - Thêm tính năng ghi lại lịch sử phiên bản.
                             </p>
+                        </li>
+                        <li class="border-b border-slate-200 dark:border-slate-700 pb-2">
+                            <strong class="font-semibold text-slate-700 dark:text-slate-200">v1.1 (Hiện tại)</strong>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">- Chuyển tính năng xem lịch sử từ "di chuột" sang "bấm".</p>
                         </li>
                         <!-- Các phiên bản trong tương lai sẽ được thêm vào đây -->
                     </ul>
@@ -2295,9 +2299,8 @@
                 lucide.createIcons();
             }
 
-            // Hide the overlay during capture by moving it outside the captured element's scope
-            // and setting its visibility to hidden.
-            loadingOverlay.style.visibility = 'hidden';
+            // Temporarily remove the overlay from the DOM flow to prevent it from being captured.
+            loadingOverlay.style.display = 'none';
 
             elementsToHide.forEach(s => document.querySelectorAll(s).forEach(e => e.style.visibility = 'hidden'));
             
@@ -2384,7 +2387,8 @@
                 });
 
                 elementsToHide.forEach(s => document.querySelectorAll(s).forEach(e => e.style.visibility = ''));
-                loadingOverlay.style.visibility = 'visible'; // Restore visibility
+                // Restore the overlay's display property before hiding it with the class
+                loadingOverlay.style.display = ''; 
 
                 if (buttonToUpdate) {
                     buttonToUpdate.disabled = false;

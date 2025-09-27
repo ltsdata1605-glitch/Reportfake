@@ -73,6 +73,8 @@ function initializePage() {
     
     // Render icons on load
     lucide.createIcons();
+
+    setupVersionTooltip();
 }
 
 // --- Initialize Google Charts ---
@@ -1932,6 +1934,23 @@ function setupGlobalControlEvents() {
     });
 } 
 
+function setupVersionTooltip() {
+    const badge = document.getElementById('version-badge');
+    const tooltip = document.getElementById('version-tooltip');
+
+    if (!badge || !tooltip) return;
+
+    badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tooltip.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!tooltip.contains(e.target) && !badge.contains(e.target)) {
+            tooltip.classList.add('hidden');
+        }
+    });
+}
 // --- NEW FEATURES ---
 
 function showUnshippedOrdersModal() {
