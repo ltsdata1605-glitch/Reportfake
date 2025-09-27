@@ -1418,12 +1418,12 @@
                 let mainGroup = App.state.productConfig.childToParentMap[maNhomHang];
                 const childGroup = App.state.productConfig.childToSubgroupMap[maNhomHang];
 
-                // Special handling for ICT and Gia dụng
+                // Special handling for ICT, CE, and Gia dụng
                 if (mainGroup === 'ICT') {
                     if (childGroup === 'Smartphone' || childGroup === 'Laptop' || childGroup === 'Tablet') {
                         mainGroup = childGroup; // Re-assign mainGroup to the specific subgroup
                     } else {
-                        mainGroup = null; // Ignore other ICT products
+                        mainGroup = null; // Ignore other ICT sub-products
                     }
                 } else if (mainGroup === 'Gia dụng' && childGroup === 'Máy lọc nước') {
                     mainGroup = 'Máy lọc nước';
