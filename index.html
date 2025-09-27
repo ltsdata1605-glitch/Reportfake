@@ -805,10 +805,17 @@
                 
                 const rows = csvText.split(/\r?\n/).slice(1);
                 rows.forEach(row => {
-                    const columns = row.split(',');
-                    if (columns.length < 4) return;
-                    const [, maNhomHang, nhomHangCha, nhomHangCon] = columns.map(c => c.trim());
-                    if (!maNhomHang || !nhomHangCha || !nhomHangCon) return;
+                    // Handle cases where the first column might contain commas
+                    const parts = row.split(',');
+                    if (parts.length < 4) return;
+
+                    // The last two columns are always Nhóm hàng cha and Nhóm hàng con
+                    const nhomHangCon = parts.pop().trim();
+                    const nhomHangCha = parts.pop().trim();
+                    const maNhomHang = parts.pop().trim();
+                    // The rest is the first column, which we don't use directly for mapping
+
+                    if (!maNhomHang || !nhomHangCha || !nhomHangCon || isNaN(parseInt(maNhomHang))) return;
 
                     if (!App.state.productConfig.groups[nhomHangCha]) App.state.productConfig.groups[nhomHangCha] = new Set();
                     App.state.productConfig.groups[nhomHangCha].add(maNhomHang);
