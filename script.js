@@ -1578,12 +1578,15 @@ function setupModalControls() {
 async function exportElementAsImage(element, filename, options = {}) {
     const { buttonToUpdate, elementsToHide = [], forceOpenDetails = false, fitContent = false } = options;
     const loadingOverlay = document.getElementById('export-loading-overlay');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingText = document.getElementById('loading-text');
     
     let originalButtonContent = '';
     if (buttonToUpdate) {
         originalButtonContent = buttonToUpdate.innerHTML;
     }
 
+    loadingText.textContent = 'Đang xử lý ảnh, vui lòng chờ...';
     loadingOverlay.classList.remove('hidden');
     if (buttonToUpdate) {
         buttonToUpdate.disabled = true;
@@ -1634,6 +1637,7 @@ async function exportElementAsImage(element, filename, options = {}) {
 
     await new Promise(resolve => setTimeout(resolve, 250));
 
+    
     try {
         const canvas = await html2canvas(element, {
             scale: 3, 
@@ -1683,6 +1687,7 @@ async function exportElementAsImage(element, filename, options = {}) {
             lucide.createIcons();
         }
         loadingOverlay.classList.add('hidden');
+        loadingText.textContent = 'Đang xử lý...'; // Reset text for other operations
     }
 }
 
