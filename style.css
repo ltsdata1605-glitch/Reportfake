@@ -104,3 +104,47 @@ body.is-capturing .truncate {
     white-space: normal !important;
     overflow: visible !important;
 }
+
+/* --- New Export Loader --- */
+#export-loading-overlay .pong-loader {
+    position: relative;
+    width: 100px;
+    height: 60px;
+}
+#export-loading-overlay .pong-ball {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: white;
+    border-radius: 50%;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    animation: pong-ball-move 1.2s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+}
+#export-loading-overlay .pong-paddle {
+    position: absolute;
+    width: 4px;
+    height: 30px;
+    background: white;
+    border-radius: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+#export-loading-overlay .pong-paddle.left {
+    left: 0;
+    animation: pong-paddle-move 1.2s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+}
+#export-loading-overlay .pong-paddle.right {
+    right: 0;
+    animation: pong-paddle-move 1.2s cubic-bezier(0.65, 0.05, 0.36, 1) infinite reverse;
+}
+
+@keyframes pong-ball-move {
+    0%, 100% { left: 5px; }
+    50% { left: calc(100% - 15px); }
+}
+@keyframes pong-paddle-move {
+    0%, 100% { transform: translateY(15px); }
+    50% { transform: translateY(-15px); }
+}

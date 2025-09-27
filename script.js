@@ -134,7 +134,7 @@ async function handleFile(e) {
     newFileBtn.classList.add('hidden');
     statusContainer.classList.remove('hidden');
     progressBar.style.width = '0%';
-
+    
     try {
         await loadConfigFromSheet();
         
@@ -1631,12 +1631,12 @@ async function exportElementAsImage(element, filename, options = {}) {
         });
     }
 
-        // Wait for the next browser paint cycle to ensure all DOM changes are applied
-        await new Promise(resolve => requestAnimationFrame(resolve));
+
+    await new Promise(resolve => setTimeout(resolve, 250));
 
     try {
         const canvas = await html2canvas(element, {
-                    scale: 2, // Optimized: Reduced scale for faster rendering. Still high quality.
+            scale: 3, 
             useCORS: true,
             backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#f8fafc',
             logging: false, 
