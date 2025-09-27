@@ -139,13 +139,3 @@ body.is-capturing .truncate {
     right: 0;
     animation: pong-paddle-move 1.2s cubic-bezier(0.65, 0.05, 0.36, 1) infinite reverse;
 }
-
-@keyframes pong-ball-move {
-    0%, 100% { left: 5px; }
-    50% { left: calc(100% - 15px); }
-}
-@keyframes pong-paddle-move {
-    0%, 100% { transform: translateY(15px); }
-    50% { transform: translateY(-15px); }
-}
-
