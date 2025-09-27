@@ -1577,7 +1577,6 @@ function setupModalControls() {
 
 async function exportElementAsImage(element, filename, options = {}) {
     const { buttonToUpdate, elementsToHide = [], forceOpenDetails = false, fitContent = false } = options;
-    const loadingOverlay = document.getElementById('export-loading-overlay');
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingText = document.getElementById('loading-text');
     
@@ -1636,7 +1635,6 @@ async function exportElementAsImage(element, filename, options = {}) {
 
 
     await new Promise(resolve => setTimeout(resolve, 250));
-
     
     try {
         const canvas = await html2canvas(element, {
