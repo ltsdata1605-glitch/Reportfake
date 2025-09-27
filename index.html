@@ -219,13 +219,13 @@
                     <h4 class="font-bold text-slate-800 dark:text-slate-100 mb-2">Lịch sử phiên bản</h4>
                     <ul class="space-y-3 text-sm max-h-60 overflow-y-auto">
                         <li class="border-b border-slate-200 dark:border-slate-700 pb-2">
-                            <strong class="font-semibold text-slate-700 dark:text-slate-200">v1.0 (Hiện tại)</strong>
+                            <strong class="font-semibold text-slate-700 dark:text-slate-200">v1.0</strong>
                             <p class="text-slate-500 dark:text-slate-400 text-xs">
                                 - Khởi tạo dashboard và các tính năng phân tích cơ bản. <br>
                                 - Thêm tính năng ghi lại lịch sử phiên bản.
                             </p>
                         </li>
-                        <li class="border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <li class="pb-2">
                             <strong class="font-semibold text-slate-700 dark:text-slate-200">v1.1 (Hiện tại)</strong>
                             <p class="text-slate-500 dark:text-slate-400 text-xs">- Chuyển tính năng xem lịch sử từ "di chuột" sang "bấm".</p>
                         </li>
@@ -779,6 +779,8 @@
             
             // Render icons on load
             lucide.createIcons();
+
+            setupVersionTooltip();
         }
 
         // --- Initialize Google Charts ---
@@ -2643,6 +2645,23 @@
             });
         } 
         
+        function setupVersionTooltip() {
+            const badge = document.getElementById('version-badge');
+            const tooltip = document.getElementById('version-tooltip');
+
+            if (!badge || !tooltip) return;
+
+            badge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                tooltip.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!tooltip.contains(e.target) && !badge.contains(e.target)) {
+                    tooltip.classList.add('hidden');
+                }
+            });
+        }
         // --- NEW FEATURES ---
 
         function showUnshippedOrdersModal() {
