@@ -2291,6 +2291,10 @@
                 lucide.createIcons();
             }
 
+            // Hide the overlay during capture by moving it outside the captured element's scope
+            // and setting its visibility to hidden.
+            loadingOverlay.style.visibility = 'hidden';
+
             elementsToHide.forEach(s => document.querySelectorAll(s).forEach(e => e.style.visibility = 'hidden'));
             
             document.body.classList.add('is-capturing');
@@ -2376,6 +2380,7 @@
                 });
 
                 elementsToHide.forEach(s => document.querySelectorAll(s).forEach(e => e.style.visibility = ''));
+                loadingOverlay.style.visibility = 'visible'; // Restore visibility
 
                 if (buttonToUpdate) {
                     buttonToUpdate.disabled = false;
