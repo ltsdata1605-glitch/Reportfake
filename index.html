@@ -1963,7 +1963,7 @@
                 const traGopAmount = isTraGop ? revenue : 0; 
 
                 let currentNode = summary; 
-                const path = [parentGroup, ...drilldownLevels.map(level => levelKeys[level](row))]; 
+        const path = [parentGroup, ...drilldownLevels.map(level => levelKeys[level](row))]; 
 
                 path.forEach((key) => { 
                     if (!currentNode[key]) { 
