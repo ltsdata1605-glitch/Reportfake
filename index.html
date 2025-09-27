@@ -182,8 +182,29 @@
 
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-            <div>
-                <h1 class="text-3xl font-bold" style="color: var(--text-primary-color);">Dashboard Phân Tích Bán Hàng</h1>
+            <div class="relative group">
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-bold" style="color: var(--text-primary-color);">Dashboard Phân Tích Bán Hàng</h1>
+                    <span class="cursor-pointer text-xs font-semibold align-middle bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 px-2.5 py-1 rounded-full">v5.2</span>
+                </div>
+                <!-- Tooltip Lịch sử phiên bản -->
+                <div class="absolute left-0 bottom-full mb-2 w-80 hidden group-hover:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 z-10">
+                    <h4 class="font-bold text-slate-800 dark:text-slate-100 mb-2">Lịch sử phiên bản</h4>
+                    <ul class="space-y-3 text-sm max-h-60 overflow-y-auto">
+                        <li class="border-b border-slate-200 dark:border-slate-700 pb-2">
+                            <strong class="font-semibold text-slate-700 dark:text-slate-200">v5.2 (Mới nhất)</strong>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">Thêm lịch sử phiên bản, tối ưu và sửa lỗi hiệu ứng chờ.</p>
+                        </li>
+                        <li class="border-b border-slate-200 dark:border-slate-700 pb-2">
+                            <strong class="font-semibold text-slate-700 dark:text-slate-200">v5.0</strong>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">Tách mã nguồn ra file riêng (CSS, JS) để dễ quản lý.</p>
+                        </li>
+                        <li>
+                            <strong class="font-semibold text-slate-700 dark:text-slate-200">v1.0 - v4.0</strong>
+                            <p class="text-slate-500 dark:text-slate-400 text-xs">Khởi tạo dashboard và các tính năng phân tích cơ bản.</p>
+                        </li>
+                    </ul>
+                </div>
                 <p style="color: var(--text-secondary-color);" class="mt-1">Dữ liệu được làm mới theo thời gian thực dựa trên tệp bạn cung cấp.</p>
             </div>
             <div class="flex items-center gap-4">
@@ -643,13 +664,16 @@
         </div>
     </div>
 
-    <!-- Unified Loading Overlay -->
+
     <div id="export-loading-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center text-white">
-        <div class="flex flex-col items-center">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
-            <p id="export-loading-text" class="mt-4 text-lg font-semibold">Đang xử lý...</p>
+        <div class="pong-loader">
+            <div class="pong-ball"></div>
+            <div class="pong-paddle left"></div>
+            <div class="pong-paddle right"></div>
         </div>
+        <p class="mt-8 text-lg font-semibold">Đang xử lý ảnh, vui lòng chờ...</p>
     </div>
+
 
     <script type="text/javascript">
         // --- Global State & Config ---
@@ -1151,7 +1175,7 @@
         } 
         
         function applyFilters() { 
-            document.getElementById('export-loading-overlay').classList.remove('hidden'); 
+            document.getElementById('loading-overlay').classList.remove('hidden'); 
             setTimeout(() => { 
                 const selectedKho = document.querySelector('#filter-kho-container .active')?.dataset.value || 'all';
                 const selectedXuatRaw = document.querySelector('#filter-xuat-container .active')?.dataset.value || 'all';
@@ -1469,7 +1493,7 @@
             drawTopSellerTable(); 
             drawEmployeePerformanceTable(); 
             renderSummaryTable(App.state.validSalesData); 
-            document.getElementById('export-loading-overlay').classList.add('hidden'); 
+            document.getElementById('loading-overlay').classList.add('hidden'); 
             lucide.createIcons();
         } 
         
@@ -2232,7 +2256,6 @@
         async function exportElementAsImage(element, filename, options = {}) {
             const { buttonToUpdate, elementsToHide = [], forceOpenDetails = false, fitContent = false } = options;
             const loadingOverlay = document.getElementById('export-loading-overlay');
-            const loadingText = document.getElementById('export-loading-text');
             
             let originalButtonContent = '';
             if (buttonToUpdate) {
@@ -2240,7 +2263,6 @@
             }
 
             loadingOverlay.classList.remove('hidden');
-            loadingText.textContent = 'Đang xử lý ảnh, vui lòng chờ...';
             if (buttonToUpdate) {
                 buttonToUpdate.disabled = true;
                 buttonToUpdate.innerHTML = `<i data-lucide="loader-2" class="animate-spin w-5 h-5"></i>`;
@@ -2288,7 +2310,7 @@
             }
 
 
-            await new Promise(resolve => requestAnimationFrame(resolve));
+            await new Promise(resolve => setTimeout(resolve, 250));
 
             try {
                 const canvas = await html2canvas(element, {
@@ -2339,7 +2361,6 @@
                     lucide.createIcons();
                 }
                 loadingOverlay.classList.add('hidden');
-                loadingText.textContent = 'Đang xử lý...'; // Reset text for next use
             }
         }
         
