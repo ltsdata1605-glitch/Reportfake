@@ -73,12 +73,6 @@ function initializePage() {
     
     // Render icons on load
     lucide.createIcons();
-
-    // Set dynamic code update timestamp
-    const timestampEl = document.getElementById('code-update-timestamp');
-    if (timestampEl) {
-        timestampEl.textContent = `[Cập nhật code: ${new Date().toLocaleString('vi-VN')}]`;
-    }
 }
 
 // --- Initialize Google Charts ---
