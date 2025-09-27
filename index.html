@@ -643,14 +643,20 @@
         </div>
     </div>
 
+    <!-- File Processing Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center text-white">
+        <div class="flex flex-col items-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
+            <p id="loadingText" class="mt-4 text-lg font-semibold"></p>
+        </div>
+    </div>
+
 
     <div id="export-loading-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex flex-col items-center justify-center text-white">
-        <div class="pong-loader">
-            <div class="pong-ball"></div>
-            <div class="pong-paddle left"></div>
-            <div class="pong-paddle right"></div>
+        <div class="flex flex-col items-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white"></div>
+            <p class="mt-4 text-lg font-semibold">Đang xử lý ảnh, vui lòng chờ...</p>
         </div>
-        <p class="mt-8 text-lg font-semibold">Đang xử lý ảnh, vui lòng chờ...</p>
     </div>
 
 

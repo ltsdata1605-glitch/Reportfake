@@ -1644,12 +1644,12 @@ async function exportElementAsImage(element, filename, options = {}) {
         });
     }
 
-
-    await new Promise(resolve => setTimeout(resolve, 250));
+        // Wait for the next browser paint cycle to ensure all DOM changes are applied
+        await new Promise(resolve => requestAnimationFrame(resolve));
 
     try {
         const canvas = await html2canvas(element, {
-            scale: 3, 
+                    scale: 2, // Optimized: Reduced scale for faster rendering. Still high quality.
             useCORS: true,
             backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#f8fafc',
             logging: false, 
