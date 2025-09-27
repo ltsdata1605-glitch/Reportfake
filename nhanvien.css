@@ -1,0 +1,123 @@
+/* Thêm font chữ Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+html, body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f7fafc; /* Màu nền cho toàn bộ trang */
+}
+
+/* Animation khi xuất hiện */
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.row-animate {
+    animation: slideInUp 0.5s ease-out forwards;
+}
+
+/* Tạm tắt animation khi đang chụp ảnh */
+.is-capturing .row-animate {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+.is-capturing .truncate {
+    overflow: visible !important;
+    white-space: normal !important;
+}
+.is-capturing .group-card {
+     break-inside: avoid;
+}
+
+
+/* Kiểu cho thông báo toast */
+#toast-notification {
+    transition: transform 0.3s ease-in-out;
+}
+
+.filter-pill {
+    transition: all 0.2s ease-in-out;
+}
+
+.filter-pill.active {
+    background-color: #3b82f6; /* bg-blue-500 */
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Tooltip styles */
+.tooltip {
+    @apply invisible absolute z-10 bottom-full left-1/2 mb-2 -translate-x-1/2 w-max max-w-xs px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 transition-opacity;
+}
+.has-tooltip:hover .tooltip {
+    @apply visible opacity-100;
+}
+
+/* Sticky header/column styles */
+.sticky-col {
+    position: -webkit-sticky; /* For Safari */
+    position: sticky;
+    left: 0;
+    z-index: 10;
+}
+.sticky-header-1 {
+    position: -webkit-sticky; /* For Safari */
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+.sticky-header-2 {
+    position: -webkit-sticky; /* For Safari */
+    position: sticky;
+    top: 56px; /* Adjust based on first header row height */
+     z-index: 20;
+}
+.sticky-header-1.sticky-col { z-index: 30 !important; }
+.sticky-header-2.sticky-col { z-index: 31 !important; } /* Higher z-index to stay on top */
+
+
+/* Make sure the sticky cells have a solid background */
+.sticky-col.bg-white { background-color: white !important; }
+.sticky-col.bg-slate-50 { background-color: #f8fafc !important; }
+.sticky-col.bg-slate-200 { background-color: #e2e8f0 !important; }
+.sticky-col.bg-yellow-100 { background-color: #fef9c3 !important; }
+.sticky-col.bg-gray-50 { background-color: #f9fafb !important; }
+.sticky-col.bg-gray-100 { background-color: #f3f4f6 !important; }
+.sticky-col.bg-slate-100 { background-color: #f1f5f9 !important; } /* Added for new header style */
+
+
+/* Progress bar styling */
+.progress-bar-container {
+    @apply w-full bg-gray-200 rounded-full h-2;
+}
+.progress-bar {
+    @apply h-2 rounded-full transition-all duration-500 ease-out;
+}
+
+/* Column delete button */
+.delete-col-btn {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: rgba(0,0,0,0.1);
+    color: #666;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+th:hover .delete-col-btn {
+    opacity: 1;
+}
+.delete-col-btn:hover {
+    background-color: rgba(239, 68, 68, 0.8);
+    color: white;
+}
+.criteria-tab-btn.active {
+    border-color: #3b82f6; /* border-blue-500 */
+    color: #2563eb; /* text-blue-600 */
+}
