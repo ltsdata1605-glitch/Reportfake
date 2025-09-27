@@ -1,0 +1,2578 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Xử lý Báo cáo</title>
+    <!-- Tích hợp Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome cho icon -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Thêm font chữ Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        html, body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc; /* Màu nền cho toàn bộ trang */
+        }
+
+        /* Animation khi xuất hiện */
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .row-animate {
+            animation: slideInUp 0.5s ease-out forwards;
+        }
+        
+        /* Tạm tắt animation khi đang chụp ảnh */
+        .is-capturing .row-animate {
+            animation: none !important;
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+        }
+        .is-capturing .truncate {
+            overflow: visible !important;
+            white-space: normal !important;
+        }
+        .is-capturing .group-card {
+             break-inside: avoid;
+        }
+
+
+        /* Kiểu cho thông báo toast */
+        #toast-notification {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .filter-pill {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .filter-pill.active {
+            background-color: #3b82f6; /* bg-blue-500 */
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        /* Tooltip styles */
+        .tooltip {
+            @apply invisible absolute z-10 bottom-full left-1/2 mb-2 -translate-x-1/2 w-max max-w-xs px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm opacity-0 transition-opacity;
+        }
+        .has-tooltip:hover .tooltip {
+            @apply visible opacity-100;
+        }
+
+        /* Sticky header/column styles */
+        .sticky-col {
+            position: -webkit-sticky; /* For Safari */
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+        .sticky-header-1 {
+            position: -webkit-sticky; /* For Safari */
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .sticky-header-2 {
+            position: -webkit-sticky; /* For Safari */
+            position: sticky;
+            top: 56px; /* Adjust based on first header row height */
+             z-index: 20;
+        }
+        .sticky-header-1.sticky-col { z-index: 30 !important; }
+        .sticky-header-2.sticky-col { z-index: 31 !important; } /* Higher z-index to stay on top */
+
+
+        /* Make sure the sticky cells have a solid background */
+        .sticky-col.bg-white { background-color: white !important; }
+        .sticky-col.bg-slate-50 { background-color: #f8fafc !important; }
+        .sticky-col.bg-slate-200 { background-color: #e2e8f0 !important; }
+        .sticky-col.bg-yellow-100 { background-color: #fef9c3 !important; }
+        .sticky-col.bg-gray-50 { background-color: #f9fafb !important; }
+        .sticky-col.bg-gray-100 { background-color: #f3f4f6 !important; }
+        .sticky-col.bg-slate-100 { background-color: #f1f5f9 !important; } /* Added for new header style */
+
+
+        /* Progress bar styling */
+        .progress-bar-container {
+            @apply w-full bg-gray-200 rounded-full h-2;
+        }
+        .progress-bar {
+            @apply h-2 rounded-full transition-all duration-500 ease-out;
+        }
+        
+        /* Column delete button */
+        .delete-col-btn {
+            position: absolute;
+            top: 1px;
+            right: 1px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,0.1);
+            color: #666;
+            font-size: 10px;
+            line-height: 16px;
+            text-align: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        th:hover .delete-col-btn {
+            opacity: 1;
+        }
+        .delete-col-btn:hover {
+            background-color: rgba(239, 68, 68, 0.8);
+            color: white;
+        }
+        .criteria-tab-btn.active {
+            border-color: #3b82f6; /* border-blue-500 */
+            color: #2563eb; /* text-blue-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 px-4 sm:px-6 lg:px-8">
+
+    <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-7xl my-4 mx-auto">
+        <!-- Tiêu đề -->
+        <div class="flex justify-center items-center gap-2 mb-2">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-center text-gray-800">HIỆU QUẢ NHÂN VIÊN</h1>
+            <span id="version-badge" class="bg-gray-200 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full cursor-pointer hover:bg-gray-300 transition">v6.5</span>
+        </div>
+        <p class="text-center text-gray-500 mb-6">Dán văn bản vào ô bên dưới để tự động tạo bảng xếp hạng.</p>
+
+        <!-- Khu vực nhập liệu (Giao diện Tab mới) -->
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+            <!-- Tab buttons -->
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600" data-tab="doanhthu">Doanh Thu</button>
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="thidua">Thi Đua</button>
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="tragop">Trả Góp</button>
+                </nav>
+            </div>
+
+            <!-- Tab content -->
+            <div class="mt-4">
+                <!-- Panel 1: Doanh thu -->
+                <div id="tab-panel-doanhthu" class="tab-panel">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
+                        <h2 class="text-xl font-bold text-gray-800">Doanh Thu</h2>
+                        <div class="flex items-center space-x-2">
+                            <a href="https://bi.thegioididong.com/khoi-ban-hang-sub/-1" target="_blank" class="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-600 transition flex items-center justify-center text-sm">
+                                <i class="fas fa-download mr-2"></i> Tải dữ liệu
+                            </a>
+                             <button class="paste-btn bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-yellow-600 transition flex items-center justify-center text-sm" data-target-textarea="text-input-doanhthu">
+                                <i class="fas fa-paste mr-2"></i> Dán
+                            </button>
+                            <button class="clear-btn bg-red-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition flex items-center justify-center text-sm" data-target-textarea="text-input-doanhthu">
+                                <i class="fas fa-trash-alt mr-2"></i> Xoá
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="text-input-doanhthu" rows="4" 
+                        placeholder="B1: Mở trang báo cáo (nút Tải dữ liệu)&#10;B2: Chọn siêu thị&#10;B3: BC Doanh thu theo nhân viên > Show dữ liệu từng bộ phận&#10;B4: Ctrl + A và Ctrl + C => Ctrl + V vào ô này" 
+                        class="data-textarea w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"></textarea>
+                </div>
+
+                <!-- Panel 2: Thi đua -->
+                <div id="tab-panel-thidua" class="tab-panel hidden">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
+                        <h2 class="text-xl font-bold text-gray-800">Báo cáo Thi đua</h2>
+                        <div class="flex items-center space-x-2">
+                            <a href="https://bi.thegioididong.com/khoi-ban-hang-sub/-1" target="_blank" class="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-600 transition flex items-center justify-center text-sm">
+                                <i class="fas fa-download mr-2"></i> Tải dữ liệu
+                            </a>
+                            <button class="paste-btn bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-yellow-600 transition flex items-center justify-center text-sm" data-target-textarea="text-input-thidua">
+                                <i class="fas fa-paste mr-2"></i> Dán
+                            </button>
+                            <button class="clear-btn bg-red-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition flex items-center justify-center text-sm" data-target-textarea="text-input-thidua">
+                                <i class="fas fa-trash-alt mr-2"></i> Xoá
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="text-input-thidua" rows="4" placeholder="B1: Mở trang báo cáo (nút Tải dữ liệu) > Chọn siêu thị&#10;B2: BC Doanh thu theo nhân viên > Chương trình thi đua > Show dữ liệu từng bộ phận&#10;B3: Ctrl + A và Ctrl + C => Ctrl + V vào ô này" 
+                        class="data-textarea w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"></textarea>
+                </div>
+
+                <!-- Panel 3: Trả góp -->
+                <div id="tab-panel-tragop" class="tab-panel hidden">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
+                        <h2 class="text-xl font-bold text-gray-800">Báo cáo Trả góp</h2>
+                         <div class="flex items-center space-x-2">
+                            <a href="https://bi.thegioididong.com/sieu-thi-con?id=16041&tab=bctg&rt=2&dm=1" target="_blank" class="bg-blue-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-600 transition flex items-center justify-center text-sm">
+                                <i class="fas fa-download mr-2"></i> Tải dữ liệu
+                            </a>
+                             <button class="paste-btn bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-yellow-600 transition flex items-center justify-center text-sm" data-target-textarea="text-input-tragop">
+                                <i class="fas fa-paste mr-2"></i> Dán
+                            </button>
+                            <button class="clear-btn bg-red-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition flex items-center justify-center text-sm" data-target-textarea="text-input-tragop">
+                                <i class="fas fa-trash-alt mr-2"></i> Xoá
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="text-input-tragop" rows="4" placeholder="Dán nội dung báo cáo Trả góp vào đây..." 
+                        class="data-textarea w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bảng điều khiển Doanh Thu -->
+        <div id="control-panel-doanhthu" class="mb-6 p-4 border border-gray-200 rounded-lg">
+             <h2 class="text-xl font-bold text-gray-800 mb-4">Bảng điều khiển</h2>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <!-- Cột Lọc -->
+                <div>
+                    <label for="department-filter-btn" class="block text-base font-semibold text-gray-700 mb-2">1. Lọc theo bộ phận</label>
+                    <div id="custom-select-container" class="relative">
+                        <button id="department-filter-btn" type="button" class="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 py-2 text-left text-sm shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <span id="selected-departments-text" class="text-gray-500">Chọn một hoặc nhiều bộ phận</span>
+                            <i class="fas fa-chevron-down text-gray-400"></i>
+                        </button>
+                        <div id="department-filter-panel" class="absolute z-10 mt-1 hidden w-full rounded-md bg-white shadow-lg border border-gray-200">
+                            <div class="p-2">
+                                <input type="text" id="department-search" placeholder="Tìm kiếm bộ phận..." class="w-full rounded-md border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <ul id="department-options-list" class="max-h-60 overflow-auto p-2">
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cột Sắp xếp & Hành động -->
+                <div>
+                    <label class="block text-base font-semibold text-gray-700 mb-2">2. Sắp xếp & Hành động</label>
+                    <div id="sort-controls" class="flex flex-wrap items-center gap-2">
+                        <button data-key="DTQĐ" class="sort-btn flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-600 transition text-sm">DTQĐ <i class="fas fa-arrow-down ml-1"></i></button>
+                        <button data-key="DTLK" class="sort-btn flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition text-sm">DTLK</button>
+                        <button data-key="Hiệu quả QĐ" class="sort-btn flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition text-sm">HQQĐ</button>
+                        <button id="export-doanhthu-btn" title="Xuất ảnh" class="bg-green-500 text-white w-10 h-10 rounded-lg shadow-sm hover:bg-green-600 transition text-sm flex items-center justify-center">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng điều khiển Thi Đua (MỚI) -->
+        <div id="control-panel-thidua" class="mb-6 p-4 border border-gray-200 rounded-lg hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Bảng điều khiển Thi Đua</h2>
+            <div class="space-y-6">
+                <!-- Lọc theo Bộ Phận -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-base font-semibold text-gray-700">1. Lọc theo bộ phận</label>
+                        <div class="space-x-2">
+                            <button id="thidua-dept-select-all" class="text-xs font-semibold text-blue-500 hover:underline">Chọn tất cả</button>
+                            <button id="thidua-dept-deselect-all" class="text-xs font-semibold text-gray-500 hover:underline">Bỏ chọn tất cả</button>
+                        </div>
+                    </div>
+                    <div id="thidua-department-filter-container" class="flex flex-wrap gap-2 p-3 rounded-md border bg-gray-50">
+                         <p class="text-gray-400 text-sm">Chưa có dữ liệu để lọc...</p>
+                    </div>
+                </div>
+
+                <!-- Lọc theo Nhóm Hàng -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-base font-semibold text-gray-700">2. Lọc theo nhóm thi đua</label>
+                        <div class="space-x-2">
+                            <button id="thidua-group-select-all" class="text-xs font-semibold text-blue-500 hover:underline">Chọn tất cả</button>
+                            <button id="thidua-group-deselect-all" class="text-xs font-semibold text-gray-500 hover:underline">Bỏ chọn tất cả</button>
+                        </div>
+                    </div>
+                    <div id="thidua-group-filter-container" class="flex flex-wrap gap-2 p-3 rounded-md border bg-gray-50">
+                         <p class="text-gray-400 text-sm">Chưa có dữ liệu để lọc...</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    <!-- Lọc theo Tiêu chí (Tab) -->
+                    <div>
+                         <label class="block text-base font-semibold text-gray-700 mb-2">3. Lọc theo tiêu chí</label>
+                        <div class="border-b border-gray-200">
+                            <nav class="-mb-px flex space-x-8" id="thidua-criteria-tabs">
+                                <button data-criteria-type="All" class="criteria-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">All</button>
+                                <button data-criteria-type="SLLK" class="criteria-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">SLLK</button>
+                                <button data-criteria-type="DTQĐ" class="criteria-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">DTQĐ</button>
+                                <button data-criteria-type="DTLK" class="criteria-tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">DTLK</button>
+                            </nav>
+                        </div>
+                    </div>
+
+                     <!-- Xuất ảnh & Reset -->
+                     <div>
+                        <label class="block text-base font-semibold text-gray-700 mb-2">4. Hành động</label>
+                        <div class="flex gap-2">
+                             <button id="thidua-reset-cols-btn" title="Đặt lại cột" class="flex-1 bg-gray-500 text-white py-3 rounded-lg shadow-sm hover:bg-gray-600 transition text-lg flex items-center justify-center">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button id="export-thidua-btn" title="Xuất ảnh" class="flex-1 bg-green-500 text-white py-3 rounded-lg shadow-sm hover:bg-green-600 transition text-lg flex items-center justify-center">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                            <button id="export-all-thidua-btn" title="Xuất tất cả tiêu chí" class="flex-1 bg-purple-500 text-white py-3 rounded-lg shadow-sm hover:bg-purple-600 transition text-lg flex items-center justify-center">
+                                <i class="fas fa-images"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quản lý Nhóm Thi Đua / Phiên bản -->
+                <div>
+                    <label class="block text-base font-semibold text-gray-700">5. Quản lý phiên bản</label>
+                    <div class="p-3 rounded-md border bg-gray-50 mt-2 space-y-3">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="thidua-view-name-input" placeholder="Tên phiên bản (vd: Nhóm SLLK)" class="flex-grow w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            <button id="thidua-save-view-btn" class="bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition flex items-center justify-center text-sm w-full sm:w-auto">
+                                <i class="fas fa-save mr-2"></i>Lưu
+                            </button>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <select id="thidua-saved-views-select" class="flex-grow w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-sm">
+                                <option value="">-- Chọn phiên bản để tải --</option>
+                            </select>
+                            <button id="thidua-load-view-btn" class="bg-green-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-green-600 transition flex items-center justify-center text-sm w-full sm:w-auto mt-2 sm:mt-0">
+                                <i class="fas fa-download mr-2"></i>Tải
+                            </button>
+                            <button id="thidua-delete-view-btn" class="bg-red-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-red-600 transition flex items-center justify-center text-sm w-full sm:w-auto mt-2 sm:mt-0">
+                                <i class="fas fa-trash-alt mr-2"></i>Xoá
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vùng kết quả dạng bảng xếp hạng -->
+        <div id="capture-area-wrapper">
+            <!-- Panel kết quả Doanh thu -->
+            <div id="results-panel-doanhthu" class="results-panel p-4 rounded-lg bg-white mx-auto">
+                <div class="flex items-center text-center text-gray-400 mb-4">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <h2 id="results-title-doanhthu" class="text-2xl font-bold text-gray-700 px-4 whitespace-nowrap">TOP BEST SELLER DOANH THU QĐ</h2>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+                <div id="results-container-doanhthu" class="space-y-4"></div>
+            </div>
+             <!-- Panel kết quả Thi đua -->
+            <div id="results-panel-thidua" class="results-panel hidden p-4 rounded-lg bg-white">
+                <div class="flex items-center text-center text-gray-400 mb-4">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <h2 id="results-title-thidua" class="text-2xl font-bold text-gray-700 px-4">HIỆU QUẢ THI ĐUA NGÀNH HÀNG</h2>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+                <div id="results-container-thidua" class="space-y-4"></div>
+            </div>
+             <!-- Panel kết quả Trả góp -->
+            <div id="results-panel-tragop" class="results-panel hidden p-4 rounded-lg bg-white">
+                 <div class="flex items-center text-center text-gray-400 mb-4">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <h2 class="text-2xl font-bold text-gray-700 px-4">TRẢ GÓP</h2>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+                <div id="results-container-tragop" class="space-y-4"></div>
+            </div>
+        </div>
+        
+        <!-- Debug Output -->
+        <div id="debug-output-container" class="hidden mt-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Thông tin gỡ lỗi (Debug)</h3>
+            <pre id="debug-output" class="bg-gray-900 text-white text-xs p-4 rounded-lg overflow-x-auto h-64"></pre>
+            <div class="flex items-center mt-4">
+                <input type="checkbox" id="debug-checkbox" class="h-4 w-4 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500">
+                <label for="debug-checkbox" class="ml-2 text-sm font-medium text-gray-700">Hiển thị thông tin gỡ lỗi</label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Thông báo Toast -->
+    <div id="toast-notification" class="fixed top-5 right-5 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full hidden z-50">
+        <!-- Nội dung thông báo -->
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center transition-opacity duration-300">
+        <div class="text-white text-center p-8 bg-gray-800 rounded-lg shadow-xl">
+            <i class="fas fa-spinner fa-spin text-4xl text-blue-400"></i>
+            <p class="mt-4 text-lg font-semibold">Đang xuất ảnh, vui lòng chờ...</p>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div id="changelog-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[9998] flex items-center justify-center transition-opacity duration-300 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div class="sticky top-0 bg-gray-100 p-4 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">Lịch sử Phiên bản</h3>
+                <button id="close-changelog-modal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Version 6.2 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v6.2</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sửa lỗi nghiêm trọng:</b> Vá lỗi `TypeError` khi sử dụng chức năng 'Xuất All' và khắc phục sự cố dán dữ liệu từ clipboard.</li>
+                    </ul>
+                </div>
+                <!-- Version 6.1 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v6.1</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sửa lỗi nghiêm trọng:</b> Vá lỗi `TypeError` gây treo ứng dụng khi xử lý dữ liệu Thi đua.</li>
+                        <li><b>Hoàn nguyên giao diện:</b> Loại bỏ các chế độ xem "Theo nhân viên" / "Theo nhóm" và khôi phục lại tab "All" để đơn giản hóa giao diện.</li>
+                    </ul>
+                </div>
+                <!-- Version 6.0 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v6.0</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Tái cấu trúc bộ lọc Thi đua:</b> Loại bỏ nút chuyển đổi "Theo nhân viên"/"Theo nhóm", tích hợp chức năng vào thanh tab "Lọc theo tiêu chí" với các tab mới: "Nhân viên" và "Nhóm".</li>
+                        <li><b>Cải tiến chức năng "Xuất All":</b> Nút "Xuất All" sẽ chỉ hiển thị ở chế độ xem theo nhân viên.</li>
+                    </ul>
+                </div>
+                 <!-- Version 5.9 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.9</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Kích hoạt lại nút "Dán":</b> Sửa lỗi và kích hoạt lại chức năng dán dữ liệu từ clipboard.</li>
+                    </ul>
+                </div>
+                 <!-- Version 5.8 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.8</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Chế độ xem mới:</b> Bổ sung chế độ xem "Theo Nhóm" để phân tích hiệu quả theo từng nhóm thi đua.</li>
+                        <li><b>Nút "Xuất All":</b> Thêm nút mới cho phép xuất đồng thời 3 ảnh báo cáo cho 3 tiêu chí (SLLK, DTQĐ, DTLK).</li>
+                        <li><b>Cải tiến giao diện:</b> Tab "All" được đổi tên thành "Nhân viên" và đặt làm mặc định.</li>
+                    </ul>
+                </div>
+                <!-- Version 5.6 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.6</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sửa lỗi hiển thị:</b> Cột "Hiệu quả" giờ đây sẽ được cố định đúng vị trí khi cuộn ngang.</li>
+                        <li><b>Xoá dữ liệu mẫu:</b> Dữ liệu mẫu trong tab "Doanh thu" đã được xoá.</li>
+                    </ul>
+                </div>
+                <!-- Version 5.4 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.4</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Thay đổi logic cảnh báo:</b> Cảnh báo 30% nhân viên có hiệu quả thấp nhất trong mỗi bộ phận, thay vì dựa trên tỷ lệ tiêu chí không đạt.</li>
+                    </ul>
+                </div>
+                <!-- Version 5.3 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.3</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Thêm tab "All":</b> Bổ sung tab "All" trong bộ lọc tiêu chí để hiển thị tất cả nhóm thi đua, được sắp xếp theo từng loại tiêu chí (SLLK, DTQĐ, DTLK).</li>
+                        <li><b>Điều chỉnh ngưỡng cảnh báo:</b> Cảnh báo hiệu quả thấp giờ sẽ hiển thị cho nhân viên có <b>>=70%</b> (thay vì 30%) nhóm thi đua không đạt hiệu quả trung bình.</li>
+                        <li><b>Xoá dữ liệu mẫu:</b> Dữ liệu mẫu trong các ô nhập liệu của tab "Thi Đua" và "Trả Góp" đã được xoá để giao diện sạch sẽ hơn khi bắt đầu.</li>
+                    </ul>
+                </div>
+                 <!-- Version 5.2 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.2</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Điều chỉnh ngưỡng cảnh báo:</b> Cảnh báo hiệu quả thấp giờ sẽ hiển thị cho nhân viên có <b>>=30%</b> (thay vì 50%) nhóm thi đua không đạt hiệu quả trung bình.</li>
+                    </ul>
+                </div>
+                 <!-- Version 5.1 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.1</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sắp xếp mặc định:</b> Bảng Thi đua giờ đây sẽ tự động sắp xếp theo cột "Hiệu Quả" (giảm dần) khi tải.</li>
+                        <li><b>Thêm TOP 1,2,3:</b> Biểu tượng huy chương vàng, bạc, đồng sẽ hiển thị cho 3 nhân viên có hiệu quả cao nhất trong mỗi bộ phận.</li>
+                        <li><b>Cảnh báo hiệu quả:</b> Biểu tượng cảnh báo cho nhân viên hiệu quả thấp đã được đổi thành màu đỏ cho dễ nhận biết hơn.</li>
+                    </ul>
+                </div>
+                <!-- Version 5.0 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v5.0</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                         <li><b>Cảnh báo hiệu quả thấp:</b> Thêm biểu tượng cảnh báo <i class="fas fa-exclamation-triangle text-yellow-500"></i> cho nhân viên có từ 50% nhóm thi đua không đạt hiệu quả trung bình.</li>
+                    </ul>
+                </div>
+                <!-- Version 4.9 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.9</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                         <li><b>Thêm cột Hiệu Quả:</b> Bổ sung cột "Hiệu Quả" trong bảng Thi Đua, hiển thị dưới dạng X/Y (số nhóm đạt / tổng số nhóm) và cho phép sắp xếp.</li>
+                    </ul>
+                </div>
+                <!-- Version 4.8 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.8</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                         <li><b>Cập nhật Rút gọn tiêu đề:</b> Cập nhật và bổ sung thêm các quy tắc rút gọn mới cho tên nhóm thi đua.</li>
+                    </ul>
+                </div>
+                <!-- Version 4.7 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.7</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                         <li><b>Thêm Rút gọn tiêu đề:</b> Bổ sung "Thi đua Iphone 17 series" vào danh sách rút gọn thành "iPhone 17".</li>
+                    </ul>
+                </div>
+                <!-- Version 4.6 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.6</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                         <li><b>Rút gọn tiêu đề:</b> Tự động rút gọn tên các nhóm thi đua theo danh sách gợi ý để giao diện bảng gọn gàng hơn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 4.5 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.5</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Tối ưu bảng Thi Đua:</b></li>
+                        <li class="ml-4">- Căn chỉnh lại nội dung trong các ô để không bị lệch dòng khi xuất ảnh.</li>
+                        <li class="ml-4">- Tiêu đề các nhóm thi đua dài được tự động rút gọn.</li>
+                        <li class="ml-4">- Độ rộng các cột được điều chỉnh để cân đối và chuyên nghiệp hơn.</li>
+                        <li class="ml-4">- Thay đổi tiêu đề cột "Nhóm TĐ" thành "Nhân Viên" cho rõ ràng.</li>
+                    </ul>
+                </div>
+                <!-- Version 4.4 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.4</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Bố cục cột Thi Đua:</b> Các cột dữ liệu có độ rộng bằng nhau và hẹp hơn, tiêu đề "Nhóm thi đua" được rút gọn. Cải thiện căn chỉnh dọc để nội dung luôn ở giữa ô.</li>
+                    </ul>
+                </div>
+                 <!-- Version 4.3 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.3</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Căn chỉnh và bố cục bảng Thi Đua:</b></li>
+                        <li class="ml-4">- Các cột dữ liệu giờ đây có độ rộng bằng nhau và tự động điều chỉnh theo nội dung.</li>
+                        <li class="ml-4">- Tiêu đề dài tự động xuống dòng để phù hợp với cột hẹp hơn.</li>
+                        <li class="ml-4">- Sửa lỗi nội dung bị lệch xuống dưới khi xuất ảnh.</li>
+                    </ul>
+                </div>
+                 <!-- Version 4.2 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.2</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Tối ưu hiển thị:</b> Các cột trong bảng Thi Đua được thu hẹp lại.</li>
+                        <li><b>Xuống dòng tự động:</b> Tiêu đề dài trong bảng Thi Đua sẽ tự động xuống dòng để dễ đọc hơn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 4.1 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.1</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sửa lỗi nghiêm trọng:</b> Vá lỗi `TypeError` và `SyntaxError` gây treo ứng dụng trong một số trường hợp.</li>
+                    </ul>
+                </div>
+                 <!-- Version 4.0 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v4.0</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Tinh chỉnh giao diện:</b> Căn chỉnh lại nội dung trong bảng Thi Đua để đảm bảo vị trí luôn ở chính giữa ô khi xuất ảnh.</li>
+                        <li><b>Thu gọn cột:</b> Giảm độ rộng các cột dữ liệu trong bảng Thi Đua để giao diện gọn gàng và dễ nhìn hơn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.9 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.9</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Căn chỉnh hoàn hảo:</b> Sửa lỗi căn chỉnh cuối cùng trong bảng Thi Đua. Giờ đây, mọi nội dung (văn bản và biểu tượng) sẽ được căn giữa ô một cách hoàn hảo, giống như hình ảnh mẫu người dùng cung cấp.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.8 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.8</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sửa lỗi Sắp xếp Cột:</b> Vá lỗi nghiêm trọng khiến tính năng "Sắp xếp cột theo bộ lọc" không hoạt động. Giờ đây các cột sẽ hiển thị chính xác theo thứ tự lựa chọn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.7 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.7</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Căn chỉnh bảng:</b> Căn giữa nội dung trong các ô của bảng Thi Đua để bản xuất ảnh trông chuyên nghiệp, không bị lệch dòng.</li>
+                        <li><b>Tối ưu xuất ảnh:</b> Cải thiện chất lượng hình ảnh xuất ra và đảm bảo chụp toàn bộ nội dung bảng, kể cả khi có thanh cuộn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.6 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.6</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sắp xếp cột theo bộ lọc:</b> Cột trong bảng Thi đua giờ sẽ hiển thị theo đúng thứ tự người dùng chọn trong bộ lọc "Nhóm thi đua".</li>
+                        <li><b>Lưu trữ phiên bản bền vững:</b> Cải thiện tính năng "Quản lý phiên bản" để đảm bảo dữ liệu đã lưu không bị mất khi làm mới hoặc đóng trình duyệt. Thêm thông báo lỗi nếu trình duyệt không cho phép lưu trữ.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.5 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.5</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Quản lý phiên bản:</b> Thêm chức năng lưu, tải và xoá các phiên bản báo cáo (thứ tự cột, bộ lọc) trong tab Thi Đua.</li>
+                        <li><b>Cải tiến giao diện:</b> Giảm độ rộng các cột dữ liệu trong bảng Thi Đua để giao diện gọn gàng hơn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.4 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.4</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Cố định ô "Tiêu chí":</b> Ô "Tiêu chí" trong bảng Thi Đua giờ đã được cố định khi cuộn ngang.</li>
+                        <li><b>Kích hoạt lại Sắp xếp:</b> Sửa lỗi và kích hoạt lại tính năng sắp xếp bằng cách nhấp vào tiêu đề cột trong bảng Thi Đua.</li>
+                        <li><b>Cân đối cột:</b> Độ rộng các cột dữ liệu trong bảng Thi Đua được cố định bằng nhau để giao diện cân đối hơn.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.3 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.3</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li><b>Sửa lỗi & Nâng cấp bộ lọc Thi Đua:</b> Sửa lỗi bộ lọc "Nhóm thi đua" và "Tiêu chí" không hoạt động.</li>
+                        <li><b>Quản lý cột Thi Đua:</b> Bổ sung tính năng kéo-thả để sắp xếp và nút (x) để xóa cột nhóm thi đua.</li>
+                        <li><b>Giao diện chuyên nghiệp:</b> Thiết kế lại bảng kết quả Thi Đua, làm nổi bật dòng tiêu đề và cố định cột nhân viên.</li>
+                         <li><b>Cảnh báo hiệu suất:</b> Thay đổi cảnh báo từ tô nền sang chỉ đổi màu chữ cho các nhân viên có kết quả dưới trung bình.</li>
+                    </ul>
+                </div>
+                 <!-- Version 3.2 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.2</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li>
+                            <b>Bảng Thi Đua:</b> Tự động làm nổi bật nhân viên có thành tích cao nhất (TOP) và thấp nhất (BOT) trong mỗi bộ phận theo từng tiêu chí.
+                        </li>
+                    </ul>
+                </div>
+                 <!-- Version 3.1 -->
+                 <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.1</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li>
+                            <b>Cải tiến hiển thị bảng Doanh Thu:</b>
+                            <ul class="list-['-_'] list-inside ml-4">
+                                <li>Thêm thanh tiến trình (progress bar) để so sánh hiệu quả.</li>
+                                <li>Tô sáng hàng khi di chuột vào nhân viên.</li>
+                                <li>Xếp hạng nhân viên được tính lại trong từng bộ phận.</li>
+                                <li>Giảm khoảng cách giữa các thẻ nhân viên cho giao diện gọn hơn.</li>
+                            </ul>
+                        </li>
+                         <li>
+                            <b>Cải tiến hiển thị bảng Thi Đua & Trả Góp:</b>
+                             <ul class="list-['-_'] list-inside ml-4">
+                                <li>Cố định cột đầu tiên (tên nhân viên) khi cuộn ngang.</li>
+                                <li>Bỏ tooltip không cần thiết để giao diện gọn hơn.</li>
+                            </ul>
+                        </li>
+                        <li><b>Cải tiến chung:</b>
+                            <ul class="list-['-_'] list-inside ml-4">
+                                 <li>Tự động điều chỉnh độ rộng bảng kết quả để vừa với nội dung, tránh khoảng trống.</li>
+                                 <li>Thêm hiệu ứng đóng khung cho tiêu đề bảng kết quả.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <!-- Version 3.0 -->
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-700">v3.0</h4>
+                    <ul class="list-disc list-inside mt-2 text-gray-600 space-y-1">
+                        <li>Thêm tính năng xem lịch sử phiên bản khi nhấn vào tag version.</li>
+                        <li>Cập nhật phiên bản lên v3.0.</li>
+                        <li>Thay đổi văn bản giao diện: "Bảng Xếp Hạng Nhân Viên" -> "HIỆU QUẢ NHÂN VIÊN", và các tên tab.</li>
+                        <li>Điều chỉnh layout "Bảng điều khiển Thi Đua" và vị trí nút "Xuất ảnh".</li>
+                        <li>Cải tiến chức năng xuất ảnh: căn giữa tiêu đề kết quả và đảm bảo chụp toàn bộ chiều rộng của bảng.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Thư viện JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+             lucide.createIcons();
+            const sortControls = document.getElementById('sort-controls');
+            const toast = document.getElementById('toast-notification');
+            const controlPanelDoanhThu = document.getElementById('control-panel-doanhthu');
+            const controlPanelThiDua = document.getElementById('control-panel-thidua');
+            const debugCheckbox = document.getElementById('debug-checkbox');
+            const debugContainer = document.getElementById('debug-output-container');
+            const debugOutput = document.getElementById('debug-output');
+
+            // --- Doanh Thu Filter Elements ---
+            const customSelectContainer = document.getElementById('custom-select-container');
+            const filterBtn = document.getElementById('department-filter-btn');
+            const selectedText = document.getElementById('selected-departments-text');
+            const filterPanel = document.getElementById('department-filter-panel');
+            const searchInput = document.getElementById('department-search');
+            const optionsList = document.getElementById('department-options-list');
+            
+            // --- Thi Đua Filter Elements ---
+            const thiduaDeptFilterContainer = document.getElementById('thidua-department-filter-container');
+            
+            // --- Thi Đua Saved Views Elements ---
+            const THIDUA_VIEWS_KEY = 'thiDuaSavedViews';
+            const viewNameInput = document.getElementById('thidua-view-name-input');
+            const saveViewBtn = document.getElementById('thidua-save-view-btn');
+            const savedViewsSelect = document.getElementById('thidua-saved-views-select');
+            const loadViewBtn = document.getElementById('thidua-load-view-btn');
+            const deleteViewBtn = document.getElementById('thidua-delete-view-btn');
+
+            // --- IndexedDB Helper ---
+            const dbName = 'ReportToolDB';
+            const storeName = 'thiDuaViews';
+            let db;
+
+            async function initDB() {
+                return new Promise((resolve, reject) => {
+                    if (!('indexedDB' in window)) {
+                        console.warn('IndexedDB not supported');
+                        reject('IndexedDB not supported');
+                        return;
+                    }
+
+                    const request = indexedDB.open(dbName, 1);
+
+                    request.onerror = (event) => {
+                        console.error('Database error:', event.target.error);
+                        showToast('Không thể truy cập cơ sở dữ liệu.', true);
+                        reject('Database error');
+                    };
+
+                    request.onupgradeneeded = (event) => {
+                        const dbInstance = event.target.result;
+                        if (!dbInstance.objectStoreNames.contains(storeName)) {
+                            dbInstance.createObjectStore(storeName, { keyPath: 'name' });
+                        }
+                    };
+
+                    request.onsuccess = (event) => {
+                        db = event.target.result;
+                        console.log('Database opened successfully');
+                        resolve(db);
+                    };
+                });
+            }
+
+            async function saveViewToDB(view) {
+                return new Promise((resolve, reject) => {
+                    if (!db) {
+                        reject('Database not initialized');
+                        return;
+                    }
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.put(view);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => {
+                        console.error('Error saving view:', event.target.error);
+                        showToast('Lỗi khi lưu phiên bản.', true);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            async function getAllViewsFromDB() {
+                return new Promise((resolve, reject) => {
+                    if (!db) {
+                        reject('Database not initialized');
+                        return;
+                    }
+                    const transaction = db.transaction([storeName], 'readonly');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.getAll();
+                    request.onsuccess = (event) => resolve(event.target.result);
+                    request.onerror = (event) => {
+                        console.error('Error getting all views:', event.target.error);
+                        showToast('Lỗi khi tải danh sách phiên bản.', true);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            async function deleteViewFromDB(viewName) {
+                return new Promise((resolve, reject) => {
+                     if (!db) {
+                        reject('Database not initialized');
+                        return;
+                    }
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.delete(viewName);
+                    request.onsuccess = () => resolve();
+                    request.onerror = (event) => {
+                        console.error('Error deleting view:', event.target.error);
+                        showToast('Lỗi khi xoá phiên bản.', true);
+                        reject(event.target.error);
+                    };
+                });
+            }
+
+            // --- State variables ---
+            let employeeData = [];
+            let currentSort = { key: 'DTQĐ', order: 'desc' };
+            let selectedDepartments = [];
+            let currentActiveTab = 'doanhthu';
+            let processedHeaders = []; 
+            
+            // State for Thi đua tab
+            let thiDuaRawData = {};
+            let thiDuaColumnOrderInfo = []; // NEW: For drag & drop column reordering
+            let selectedThiDuaDepartments = [];
+            let selectedThiDuaGroups = []; // This array will now maintain selection order
+            let currentThiDuaCriteriaType = 'All';
+            let thiDuaSort = { key: 'effectiveness', order: 'desc' }; 
+
+
+            const logDebug = (message, data = null) => {
+                if (!debugCheckbox.checked) return;
+                const timestamp = new Date().toLocaleTimeString();
+                let logEntry = `[${timestamp}] ${message}`;
+                if (data !== null) {
+                    logEntry += `\n${JSON.stringify(data, null, 2)}`;
+                }
+                debugOutput.textContent += logEntry + '\n\n';
+                debugOutput.scrollTop = debugOutput.scrollHeight;
+            };
+
+            const showToast = (message, isError = false) => {
+                toast.textContent = message;
+                toast.classList.toggle('bg-red-500', isError);
+                toast.classList.toggle('bg-green-500', !isError);
+                toast.classList.remove('hidden', 'translate-x-full');
+                toast.classList.add('translate-x-0');
+                setTimeout(() => {
+                    toast.classList.remove('translate-x-0');
+                    toast.classList.add('translate-x-full');
+                     setTimeout(() => toast.classList.add('hidden'), 300);
+                }, 3000);
+            };
+            
+            const splitLineSmart = (line) => {
+                let cells = line.split('\t');
+                if (cells.length < 2 && line.includes('  ')) {
+                    cells = line.split(/\s{2,}/).filter(c => c.trim() !== '');
+                }
+                return cells.map(c => c.trim());
+            };
+            
+            const parseTragopData = (text) => {
+                logDebug("Bắt đầu xử lý dữ liệu Trả góp");
+                const allLines = text.split('\n').filter(line => !/hỗ trợ bi|copyright ©/i.test(line));
+                const tableStartIndex = allLines.findIndex((line, index) => {
+                    if (index + 1 >= allLines.length) return false;
+                    const line1 = line.trim();
+                    const line2 = allLines[index + 1].trim();
+                    return (line1.includes("Nhân viên") && line1.includes("HomeCredit(HC)")) &&
+                           (line2.includes("DT Trả Góp") && line2.includes("Tỷ Trọng"));
+                });
+
+                logDebug(`Tìm thấy điểm bắt đầu bảng Trả góp tại dòng: ${tableStartIndex}`);
+                if (tableStartIndex === -1) {
+                    showToast('Không tìm thấy bảng dữ liệu Trả góp.');
+                    return { body: [] };
+                }
+
+                const tableLines = allLines.slice(tableStartIndex + 2); // Skip 2 header lines
+                let body_raw = tableLines
+                    .map(line => splitLineSmart(line))
+                    .filter(row => row.length > 1 && row[0] !== '' && !row[0].toLowerCase().includes('tổng'));
+                
+                let lastMeaningfulColumn = 0;
+                 const findLastCol = (row) => {
+                     for(let i = row.length - 1; i >= 0; i--) {
+                         if((row[i] || '').trim() !== '') return i;
+                     }
+                     return -1;
+                 };
+                body_raw.forEach(row => {
+                    lastMeaningfulColumn = Math.max(lastMeaningfulColumn, findLastCol(row));
+                });
+                const columnCount = lastMeaningfulColumn + 1;
+                
+                let body = body_raw.map(row => row.slice(0, columnCount));
+                
+                logDebug("Dữ liệu body của Trả góp", body);
+                return { body };
+            };
+
+            const shortenEmployeeName = (nameString) => {
+                if (!nameString || !nameString.includes(' - ')) {
+                    return nameString;
+                }
+                const parts = nameString.split(' - ');
+                let name = parts[0].trim();
+                let id = parts[1].trim();
+                if (!isNaN(parseInt(name, 10))) { 
+                    [id, name] = [name, id];
+                }
+                const nameParts = name.split(' ').filter(p => p.trim() !== '');
+                if (nameParts.length <= 1) {
+                    return `${id} - ${name}`;
+                }
+                const firstNameInitial = nameParts[0].charAt(0).toUpperCase();
+                const lastName = nameParts[nameParts.length - 1];
+                const shortened = `${firstNameInitial}.${lastName}`;
+                return `${id} - ${shortened}`;
+            };
+
+            const shortenDepartmentName = (nameString) => {
+                const lowerCaseName = nameString.toLowerCase();
+                if (lowerCaseName.includes('tư vấn')) return 'BP Tư Vấn';
+                if (lowerCaseName.includes('kho')) return 'BP Kho';
+                if (lowerCaseName.includes('thu ngân')) return 'BP Thu Ngân';
+                if (lowerCaseName.includes('supermini')) return 'BP AIO';
+                if (lowerCaseName.includes('aio')) return 'BP AIO';
+                return nameString; 
+            };
+
+            const parseThiDuaData = (text) => {
+                logDebug("Bắt đầu xử lý dữ liệu Thi đua");
+                const allLines = text.split('\n').filter(line => line.trim() !== '' && !/hỗ trợ bi|copyright ©/i.test(line));
+                if (allLines.length < 2) {
+                    showToast('Dữ liệu Thi đua không đủ dòng để xử lý.');
+                    return { headers1: [], headers2: [], body: [] };
+                }
+
+                const phongBanIndex = allLines.findIndex(line => line.trim().toLowerCase().includes('phòng ban'));
+                if (phongBanIndex !== -1) {
+                    logDebug("Tìm thấy 'Phòng ban', bắt đầu phân tích cấu trúc cột.");
+                    const verticalHeaders1 = [];
+                    let dataStartIndex = -1;
+                    for (let i = phongBanIndex; i < allLines.length; i++) {
+                        const cells = splitLineSmart(allLines[i].trim());
+                        if (cells.length > 1) { 
+                            dataStartIndex = i;
+                            break;
+                        }
+                        verticalHeaders1.push(cells[0] || '');
+                    }
+                    if (dataStartIndex !== -1) {
+                        const headers1 = verticalHeaders1; 
+                        const remainingLines = allLines.slice(dataStartIndex);
+                        const h2CandidateCells = splitLineSmart(remainingLines[0]);
+                        const metricLikeCells = h2CandidateCells.filter(c => /^[A-ZĐLKQĐ]+$/.test(c) && c.length > 1 && c.length < 6);
+                        let headers2 = [], bodyStartIndex = 0;
+                        if ((metricLikeCells.length / h2CandidateCells.length) > 0.5) {
+                            headers2 = h2CandidateCells;
+                            bodyStartIndex = 1;
+                        }
+                        let body = remainingLines.slice(bodyStartIndex).map(line => splitLineSmart(line)).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
+                        body.forEach(row => {
+                            if (row[0] && row[0].toLowerCase().startsWith('bp ')) {
+                                row[0] = shortenDepartmentName(row[0]);
+                            }
+                        });
+                        return { headers1, headers2, body };
+                    }
+                }
+                
+                let header1Index = -1, header2Index = -1;
+                const horizontalPhongBanIndex = allLines.findIndex(line => line.toLowerCase().includes('phòng ban'));
+                if (horizontalPhongBanIndex !== -1 && horizontalPhongBanIndex + 1 < allLines.length) {
+                    const cells = splitLineSmart(allLines[horizontalPhongBanIndex + 1]);
+                    if ((cells.filter(c => /^[A-ZĐLKQĐ]+$/.test(c) && c.length > 1 && c.length < 6).length / cells.length) > 0.5) {
+                         header1Index = horizontalPhongBanIndex;
+                         header2Index = horizontalPhongBanIndex + 1;
+                    }
+                }
+                if (header1Index === -1) {
+                    for (let i = 1; i < allLines.length; i++) {
+                        const cellsH2 = splitLineSmart(allLines[i].trim());
+                        if (cellsH2.length < 4) continue;
+                        if ((cellsH2.filter(c => /^[A-ZĐLKQĐ]+$/.test(c) && c.length > 1 && c.length < 6).length / cellsH2.length) > 0.5) {
+                             if (!/^(BP|Tổng|\d{3,}-)/i.test(allLines[i-1].trim())) {
+                                 header2Index = i;
+                                 header1Index = i - 1;
+                                 break;
+                             }
+                        }
+                    }
+                }
+                if (header1Index === -1) {
+                    showToast('Không thể tự động xác định tiêu đề bảng Thi đua.');
+                    return { headers1: [], headers2: [], body: [] };
+                }
+                const headers1 = splitLineSmart(allLines[header1Index]);
+                const headers2 = splitLineSmart(allLines[header2Index]);
+                let body = allLines.slice(header2Index + 1).map(line => splitLineSmart(line)).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
+                body.forEach(row => {
+                    if (row[0] && row[0].toLowerCase().startsWith('bp ')) {
+                        row[0] = shortenDepartmentName(row[0]);
+                    }
+                });
+                return { headers1, headers2, body };
+            };
+
+            const processDoanhThuData = (text) => {
+                logDebug("Bắt đầu xử lý dữ liệu Doanh thu");
+                const allLines = text.split('\n').filter(line => !/hỗ trợ bi|copyright ©/i.test(line));
+                const tableStartIndex = allLines.findIndex(line => line.includes("Nhân viên") && line.includes("DTLK") && line.includes("DTQĐ"));
+
+                if (tableStartIndex === -1) {
+                    employeeData = [];
+                    return { headers: [] };
+                }
+
+                const tableLines = allLines.slice(tableStartIndex);
+                let headers_raw = splitLineSmart(tableLines[0]);
+                
+                let body_raw = tableLines.slice(1)
+                    .map(line => splitLineSmart(line))
+                    .filter(row => row.length > 1 && row[0] !== '' && !row[0].toLowerCase().includes('tổng'));
+
+                const headersToExclude = ['Số lượng', 'Đơn giá'];
+                const excludedIndices = [];
+                headers_raw.forEach((header, index) => {
+                    if (headersToExclude.includes(header)) excludedIndices.push(index);
+                });
+                
+                let headers_intermediate = headers_raw;
+                let body_intermediate = body_raw;
+
+                if (excludedIndices.length > 0) {
+                    headers_intermediate = headers_intermediate.filter((_, index) => !excludedIndices.includes(index));
+                    body_intermediate = body_intermediate.map(row => row.filter((_, index) => !excludedIndices.includes(index)));
+                }
+
+                let lastMeaningfulColumn = 0;
+                 const findLastCol = (row) => {
+                     for(let i = row.length - 1; i >= 0; i--) {
+                         if((row[i] || '').trim() !== '') return i;
+                     }
+                     return -1;
+                 };
+
+                lastMeaningfulColumn = Math.max(lastMeaningfulColumn, findLastCol(headers_intermediate));
+                body_intermediate.forEach(row => {
+                    lastMeaningfulColumn = Math.max(lastMeaningfulColumn, findLastCol(row));
+                });
+                const columnCount = lastMeaningfulColumn + 1;
+
+                let headers = headers_intermediate.slice(0, columnCount);
+                let body = body_intermediate.map(row => row.slice(0, columnCount));
+                
+                let currentDepartment = 'Không xác định';
+                const allEmployees = [];
+                body.forEach(row => {
+                    const firstCell = (row[0] || '').trim();
+                    const isDepartment = firstCell.startsWith("BP ") || (!/\d/.test(firstCell) && firstCell.length < 30);
+                    if (isDepartment) currentDepartment = shortenDepartmentName(firstCell);
+                    else if (firstCell.includes('-') && /\d/.test(firstCell)) {
+                        allEmployees.push({ rowData: row, department: currentDepartment });
+                    }
+                });
+                
+                const dtqdIndex = headers.indexOf('DTQĐ');
+                const dtlkIndex = headers.indexOf('DTLK');
+                const hieuquaIndex = headers.indexOf('Hiệu quả QĐ');
+                
+                employeeData = allEmployees.map(emp => ({
+                    ...emp,
+                    metrics: {
+                        'DTQĐ': dtqdIndex > -1 ? parseFloat((emp.rowData[dtqdIndex] || '0').replace(/,/g, '')) : 0,
+                        'DTLK': dtlkIndex > -1 ? parseFloat((emp.rowData[dtlkIndex] || '0').replace(/,/g, '')) : 0,
+                        'Hiệu quả QĐ': hieuquaIndex > -1 ? parseFloat((emp.rowData[hieuquaIndex] || '0').replace(/,/g, '')) : 0,
+                    }
+                })).filter(emp => !isNaN(emp.metrics.DTQĐ));
+                
+                logDebug("Đã xử lý xong dữ liệu Doanh thu", { count: employeeData.length });
+                return { headers };
+            };
+
+            const updateTitles = () => {
+                 const resultsTitle = document.getElementById('results-title-doanhthu');
+                 if(!resultsTitle) return;
+                 switch (currentSort.key) {
+                    case 'DTQĐ': resultsTitle.textContent = 'TOP BEST SELLER DOANH THU QĐ'; break;
+                    case 'DTLK': resultsTitle.textContent = 'TOP BEST SELLER DOANH THU THỰC'; break;
+                    case 'Hiệu quả QĐ': resultsTitle.textContent = 'TOP HIỆU QUẢ QUY ĐỔI'; break;
+                    default: resultsTitle.textContent = 'TOP BEST SELLER';
+                }
+            };
+            
+             const shortenGroupName = (name) => {
+                if (!name) return name;
+                const lowerName = name.toLowerCase().trim();
+                const replacements = {
+                    'camera t9': 'Camera',
+                    'máy lạnh': 'M.Lạnh',
+                    'máy giặt, sấy': 'M.Giặt/Sấy',
+                    'máy nước nóng': 'M.N.Nóng',
+                    'laptop': 'Laptop',
+                    'tủ lạnh, tủ đông, tủ mát': 'T.Lạnh/Đ/M',
+                    'nồi chiên': 'N.Chiên',
+                    'nồi cơm': 'N.Cơm',
+                    'sản phẩm lg': 'LG',
+                    'tivi sony': 'Sony',
+                    'tiền mặt cake': 'Cake',
+                    'bán hàng toshiba & comfee': 'Toshiba & Comfee',
+                    'homecredit': 'HC',
+                    'fecredit & tpbank': 'FE',
+                    'homepaylater': 'HPL',
+                    'máy lọc nước': 'M.L.Nước',
+                    'bảo hiểm': 'B.Hiểm',
+                    'điện thoại & tablet android trên 7 triệu': 'Android >7tr',
+                    'nạp rút tiền tài khoản ngân hàng': 'Nạp Rút',
+                    'sim ( tất cả nhà mạng)': 'SIM',
+                    'phụ kiện - đồng hồ': 'PK & ĐH',
+                    'đồng hồ thời trang': 'Đ.Hồ',
+                    'quạt gió': 'Quạt',
+                    'vas': 'Vieon',
+                    'bán hàng vivo': 'Vivo',
+                    'bán hàng realme': 'Realme',
+                    'homecredit hero': 'HC Hero',
+                    'thi đua iphone 17 series': 'iPhone 17'
+                };
+                
+                return replacements[lowerName] || name;
+            };
+
+            const renderGenericTable = (containerId, data) => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                const { headers1, headers2, body, stats, columnInfos } = data;
+
+                if (!body || body.length === 0 || !headers1 || headers1.length === 0) {
+                    container.innerHTML = `<p class="text-center text-gray-500">Không có dữ liệu để hiển thị.</p>`;
+                    return;
+                }
+                
+                const tableContainer = document.createElement('div');
+                tableContainer.className = "overflow-x-auto relative shadow-md sm:rounded-lg";
+
+                const table = document.createElement('table');
+                table.className = "w-full text-sm table-fixed";
+                
+                const colgroup = document.createElement('colgroup');
+                colgroup.innerHTML = `<col style="width: 180px;"><col style="width: 80px;">` + headers2.map(() => `<col style="width: 80px;">`).join('');
+                table.appendChild(colgroup);
+                
+                const thead = document.createElement('thead');
+                thead.className = "text-xs text-slate-700 uppercase";
+
+                if (headers2 && headers2.length > 0) {
+                    const tr1 = document.createElement('tr');
+                    
+                    let nameHeaderHTML = `<th class="px-2 py-2 align-middle sticky-header-1 sticky-col bg-slate-100 cursor-pointer hover:bg-slate-200 thidua-sortable-header text-center whitespace-normal" data-key="_name">Nhân viên`;
+                    if (thiDuaSort.key === '_name') {
+                        nameHeaderHTML += ` <i class="fas ${thiDuaSort.order === 'desc' ? 'fa-arrow-down' : 'fa-arrow-up'} ml-1 text-blue-500"></i>`;
+                    } else {
+                        nameHeaderHTML += ` <i class="fas fa-sort ml-1 text-gray-400"></i>`;
+                    }
+                    nameHeaderHTML += `</th>`;
+
+                    let effectivenessHeaderHTML = `<th class="px-2 py-2 align-middle sticky-header-1 sticky-col bg-slate-100 cursor-pointer hover:bg-slate-200 thidua-sortable-header text-center whitespace-normal" style="left: 180px;" data-key="effectiveness">Hiệu Quả`;
+                    if (thiDuaSort.key === 'effectiveness') {
+                        effectivenessHeaderHTML += ` <i class="fas ${thiDuaSort.order === 'desc' ? 'fa-arrow-down' : 'fa-arrow-up'} ml-1 text-blue-500"></i>`;
+                    } else {
+                        effectivenessHeaderHTML += ` <i class="fas fa-sort ml-1 text-gray-400"></i>`;
+                    }
+                    effectivenessHeaderHTML += `</th>`;
+
+                    tr1.innerHTML = nameHeaderHTML + effectivenessHeaderHTML;
+                    
+                    const reorderedInfos = columnInfos;
+                    if (reorderedInfos) {
+                        reorderedInfos.forEach(info => {
+                            const category = thiDuaRawData.headers1[info.originalStartIndex];
+                            if (!category) return;
+                            
+                            let newSpan = 0;
+                            for (let i = 0; i < info.span; i++) {
+                                const originalColIdx = info.originalStartIndex + i;
+                                const criteriaName = thiDuaRawData.headers2[originalColIdx - 1];
+                                if (headers2.includes(criteriaName)) {
+                                    newSpan++;
+                                }
+                            }
+
+                            if (newSpan === 0) return;
+
+                            const th = document.createElement('th');
+                            th.colSpan = newSpan;
+                            th.className = "px-1 py-2 text-center sticky-header-1 bg-slate-100 border-b border-l border-gray-300 relative h-14 align-middle break-words";
+                            th.textContent = shortenGroupName(category);
+
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.className = "delete-col-btn";
+                            deleteBtn.innerHTML = "&times;";
+                            deleteBtn.dataset.originalStartIndex = info.originalStartIndex;
+                            th.appendChild(deleteBtn);
+
+                            tr1.appendChild(th);
+                        });
+                    }
+
+                    const tr2 = document.createElement('tr');
+                    tr2.innerHTML = `<th class="px-2 py-2 sticky-header-2 sticky-col bg-slate-100 border-b border-l border-gray-300 text-center">Tiêu chí</th><th class="px-2 py-2 sticky-header-2 sticky-col bg-slate-100 border-b border-l border-gray-300 text-center" style="left: 180px;">(Đạt/Tổng)</th>` + 
+                    headers2.map(h => {
+                        let sortIcon = ` <i class="fas fa-sort ml-1 text-gray-400"></i>`;
+                        if (thiDuaSort.key === h) {
+                            sortIcon = ` <i class="fas ${thiDuaSort.order === 'desc' ? 'fa-arrow-down' : 'fa-arrow-up'} ml-1 text-blue-500"></i>`;
+                        }
+                        return `<th data-key="${h}" class="text-center px-1 py-2 sticky-header-2 bg-slate-100 border-b border-l border-gray-300 cursor-pointer hover:bg-slate-200 thidua-sortable-header">${h}${sortIcon}</th>`;
+                    }).join('');
+                    
+                    thead.appendChild(tr1);
+                    thead.appendChild(tr2);
+                } else { 
+                     const tr = document.createElement('tr');
+                     tr.innerHTML = headers1.map(h => `<th scope="col" class="px-2 py-2 whitespace-nowrap sticky-header-1 bg-slate-100 border-b border-l border-gray-300">${h}</th>`).join('');
+                     thead.appendChild(tr);
+                }
+                
+                const tbody = document.createElement('tbody');
+                let isOdd = false;
+                let currentDeptForRow = null;
+                tbody.innerHTML = body.map((item) => {
+                    const row = item.rowData;
+                    const isTotalRow = row[0] && row[0].toLowerCase().includes('tổng');
+                    const isDeptRow = row[0] && row[0].toLowerCase().startsWith('bp');
+                    if (isDeptRow) { 
+                        isOdd = false;
+                        currentDeptForRow = row[0];
+                    }
+
+                    let rowClass = "bg-white border-b";
+                    let stickyBgClass = "bg-white";
+                    if(isTotalRow) { 
+                        rowClass = "bg-yellow-100 border-b font-bold text-gray-900";
+                        stickyBgClass = "bg-yellow-100";
+                    } 
+                    else if (isDeptRow) { 
+                        rowClass = "bg-slate-200 border-b font-bold text-slate-800";
+                        stickyBgClass = "bg-slate-200";
+                    } 
+                    else if (isOdd) { 
+                        rowClass = "bg-slate-50 border-b";
+                        stickyBgClass = "bg-slate-50";
+                    }
+                    
+                    if(!isDeptRow && !isTotalRow) { isOdd = !isOdd; }
+                    
+                    let nameContent = row[0];
+                    if (!isDeptRow && !isTotalRow) nameContent = shortenEmployeeName(row[0]);
+                    
+                    let warningIcon = '';
+                     if (!isDeptRow && !isTotalRow && item.isBottom30) {
+                        warningIcon = `<i class="fas fa-exclamation-triangle text-red-500 ml-auto" title="Thuộc 30% nhân viên có hiệu quả thấp nhất bộ phận"></i>`;
+                    }
+
+                    let rankIcon = '';
+                    if (!isDeptRow && !isTotalRow && item.rank) {
+                        if (item.rank === 1) {
+                            rankIcon = '<i class="fas fa-medal text-xl text-yellow-400"></i>';
+                        } else if (item.rank === 2) {
+                            rankIcon = '<i class="fas fa-medal text-xl text-gray-400"></i>';
+                        } else if (item.rank === 3) {
+                            rankIcon = '<i class="fas fa-medal text-xl text-orange-500"></i>';
+                        }
+                    }
+                    
+                    let nameCellHtml = `<td class="px-2 py-2 whitespace-nowrap border-r border-gray-200 text-left font-semibold sticky-col ${stickyBgClass} align-middle">
+                        <div class="flex items-center gap-2">${rankIcon}<span class="flex-grow">${nameContent}</span>${warningIcon}</div>
+                    </td>`;
+
+                    let effectivenessCellHtml = `<td class="px-1 py-2 whitespace-nowrap border-r border-gray-200 align-middle text-center sticky-col ${stickyBgClass}" style="left: 180px;">`;
+                    if (item.display) {
+                        const [achieved, total] = item.display.split('/');
+                        effectivenessCellHtml += `<b class="font-bold text-blue-600">${achieved}</b><span class="text-gray-500">/${total}</span>`;
+                    }
+                    effectivenessCellHtml += `</td>`;
+
+
+                    const dataCellsHtml = row.slice(1).map((cell, cellIndex) => {
+                        let content = cell;
+                        let highlightClass = '';
+                        let highlightIcon = '';
+                        const originalCellIndex = cellIndex + 1;
+                        
+                        // Highlighting logic
+                        const value = parseFloat(String(cell).replace(/,/g, ''));
+                        if (!isNaN(value) && !isDeptRow && !isTotalRow && currentDeptForRow && stats) {
+                             const deptStats = stats.get(currentDeptForRow);
+                             if (deptStats && deptStats.columns[originalCellIndex]) {
+                                 const colStats = deptStats.columns[originalCellIndex];
+                                 if (value > 0) {
+                                     if (colStats.top1 !== undefined && value === colStats.top1) {
+                                         highlightClass = 'bg-yellow-200 text-yellow-900 font-bold';
+                                         highlightIcon = `<i class="fas fa-trophy text-yellow-500 text-xs ml-1"></i>`;
+                                     } else if (colStats.top2 !== undefined && value === colStats.top2) {
+                                         highlightClass = 'bg-gray-200 text-gray-800 font-semibold';
+                                         highlightIcon = `<i class="fas fa-medal text-gray-500 text-xs ml-1"></i>`;
+                                     } else if (colStats.top3 !== undefined && value === colStats.top3) {
+                                         highlightClass = 'bg-orange-200 text-orange-900 font-semibold';
+                                         highlightIcon = `<i class="fas fa-award text-orange-500 text-xs ml-1"></i>`;
+                                     } else if (value < colStats.average) {
+                                         highlightClass = 'text-red-600';
+                                     }
+                                 }
+                             }
+                        }
+
+                        // Format numbers
+                        if (originalCellIndex > 0) {
+                            const num = parseFloat(String(cell).replace(/,/g, ''));
+                            if (!isNaN(num) && num === 0) {
+                                content = '';
+                            } else if (!isNaN(num) && cell.includes('.')) { 
+                                content = Math.floor(num).toLocaleString('en-US');
+                            }
+                        }
+
+                        return `<td class="px-1 py-2 whitespace-nowrap border-r border-gray-200 ${highlightClass} align-middle text-center">
+                            <span class="inline-flex items-center justify-center gap-x-1">${content}${highlightIcon}</span>
+                        </td>`;
+                    }).join('');
+
+                    return `<tr class="${rowClass}">${nameCellHtml}${effectivenessCellHtml}${dataCellsHtml}</tr>`;
+                }).join('');
+                
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                tableContainer.appendChild(table);
+
+                container.innerHTML = '';
+                container.appendChild(tableContainer);
+
+                // Initialize SortableJS for column dragging
+                const headerRow1 = thead.querySelector('tr:first-child');
+                if (headerRow1 && headerRow1.children.length > 2 && containerId === 'results-container-thidua') {
+                    new Sortable(headerRow1, {
+                        animation: 150,
+                        filter: '.sticky-col', // Prevent dragging the first two fixed columns
+                        preventOnFilter: true,
+                        onEnd: (evt) => {
+                            const oldModelIndex = evt.oldIndex - 2; // Offset by 2 for fixed columns
+                            const newModelIndex = evt.newIndex - 2;
+                            
+                            if (oldModelIndex < 0 || newModelIndex < 0) return;
+
+                            const [movedItem] = thiDuaColumnOrderInfo.splice(oldModelIndex, 1);
+                            thiDuaColumnOrderInfo.splice(newModelIndex, 0, movedItem);
+
+                            renderThiDuaView();
+                        }
+                    });
+                }
+                
+                container.querySelectorAll('.delete-col-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const indexToDelete = parseInt(e.currentTarget.dataset.originalStartIndex, 10);
+                        thiDuaColumnOrderInfo = thiDuaColumnOrderInfo.filter(info => info.originalStartIndex !== indexToDelete);
+                        renderThiDuaView();
+                        showToast('Đã ẩn cột.');
+                    });
+                });
+
+
+                const theadForSort = container.querySelector('thead');
+                if (theadForSort) {
+                    theadForSort.addEventListener('click', (e) => {
+                        const header = e.target.closest('.thidua-sortable-header');
+                        if (!header) return;
+                        const sortKey = header.dataset.key;
+                        if (!sortKey) return;
+                        
+                        if (thiDuaSort.key === sortKey) {
+                            thiDuaSort.order = thiDuaSort.order === 'desc' ? 'asc' : 'desc';
+                        } else {
+                            thiDuaSort.key = sortKey;
+                            thiDuaSort.order = 'desc';
+                        }
+                        renderThiDuaView();
+                    });
+                }
+            };
+            
+             const renderTragopTable = (containerId, data) => {
+                const container = document.getElementById(containerId);
+                if (!container || !data || data.body.length === 0) {
+                    container.innerHTML = `<p class="text-center text-gray-500">Không có dữ liệu để hiển thị.</p>`;
+                    return;
+                }
+                 const header_map_l1 = ["HomeCredit(HC)", "HomeCredit(HC)", "FECredit(FE)", "FECredit(FE)", "Thẻ tín dụng - SMARTPOS", "Thẻ tín dụng - SMARTPOS", "Trả góp HPL-Home Credit", "Trả góp HPL-Home Credit", "DT Siêu thị (*)", "Tỷ Trọng Trả Góp (%) (**)"];
+                 const header_map_l2 = ["DT Trả Góp", "Tỷ Trọng Trả Góp (%)", "DT Trả Góp", "Tỷ Trọng Trả Góp (%)", "DT Trả Góp", "Tỷ Trọng Trả Góp (%)", "DT Trả Góp", "Tỷ Trọng Trả Góp (%)", "", ""];
+
+
+                const tableContainer = document.createElement('div');
+                tableContainer.className = "overflow-x-auto relative shadow-md sm:rounded-lg";
+
+                const table = document.createElement('table');
+                table.className = "w-full text-sm text-left text-gray-500";
+                
+                const thead = document.createElement('thead');
+                thead.className = "text-xs text-gray-700 uppercase bg-gray-50";
+                
+                thead.innerHTML = `
+                    <tr>
+                        <th rowspan="2" class="px-6 py-3 border align-middle whitespace-nowrap sticky-header-1 sticky-col bg-gray-50">Nhân viên</th>
+                        <th colspan="2" class="px-6 py-3 text-center border whitespace-nowrap sticky-header-1 bg-gray-50">HomeCredit(HC)</th>
+                        <th colspan="2" class="px-6 py-3 text-center border whitespace-nowrap sticky-header-1 bg-gray-50">FECredit(FE)</th>
+                        <th colspan="2" class="px-6 py-3 text-center border whitespace-nowrap sticky-header-1 bg-gray-50">Thẻ tín dụng - SMARTPOS</th>
+                        <th colspan="2" class="px-6 py-3 text-center border whitespace-nowrap sticky-header-1 bg-gray-50">Trả góp HPL-Home Credit</th>
+                        <th rowspan="2" class="px-6 py-3 border align-middle whitespace-nowrap sticky-header-1 bg-gray-50">DT Siêu thị (*)</th>
+                        <th rowspan="2" class="px-6 py-3 border align-middle whitespace-nowrap sticky-header-1 bg-gray-50">Tỷ Trọng Trả Góp (%) (**)</th>
+                    </tr>
+                    <tr>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">DT Trả Góp</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">Tỷ Trọng Trả Góp (%)</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">DT Trả Góp</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">Tỷ Trọng Trả Góp (%)</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">DT Trả Góp</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">Tỷ Trọng Trả Góp (%)</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">DT Trả Góp</th>
+                        <th class="px-4 py-2 border whitespace-nowrap sticky-header-2 bg-gray-50">Tỷ Trọng Trả Góp (%)</th>
+                    </tr>
+                `;
+                
+                const tbody = document.createElement('tbody');
+                tbody.innerHTML = data.body.map(row => {
+                    let rowHtml = `<tr class="bg-white border-b hover:bg-gray-50">`;
+                    const fullRow = [...row];
+                    while(fullRow.length < 11) fullRow.push('');
+
+                    fullRow.forEach((cell, index) => {
+                        const isPercentageColumn = [2, 4, 6, 8, 10].includes(index + 1);
+                        const cellClass = isPercentageColumn ? 'text-green-600 font-semibold' : '';
+
+                        if (index === 0) {
+                             rowHtml += `<td class="px-6 py-4 border whitespace-nowrap sticky-col bg-white">${cell}</td>`;
+                             return;
+                        }
+                        rowHtml += `<td class="px-6 py-4 border whitespace-nowrap ${cellClass}">
+                            ${cell}
+                        </td>`;
+                    });
+                    rowHtml += `</tr>`;
+                    return rowHtml;
+                }).join('');
+                
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                tableContainer.appendChild(table);
+
+                container.innerHTML = '';
+                container.appendChild(tableContainer);
+            };
+
+            const createDepartmentSummaryRow = (department, data) => {
+                const row = document.createElement('div');
+                row.className = 'department-summary-row flex flex-col md:flex-row items-start md:items-center justify-between p-3 bg-gray-100 rounded-xl gap-2';
+                
+                let summaryMetricHtml = '';
+                switch (currentSort.key) {
+                    case 'DTLK':
+                        summaryMetricHtml = `<div><div class="text-xs text-gray-500">Tổng DTLK</div><div class="text-lg font-bold text-gray-700">${Math.floor(data.totalDtlk).toLocaleString('en-US')}</div></div>`;
+                        break;
+                    case 'Hiệu quả QĐ':
+                        const avgHieuQua = data.employees.length > 0 ? (data.totalHieuQuaQD / data.employees.length) * 100 : 0;
+                        summaryMetricHtml = `<div><div class="text-xs text-gray-500">HQQĐ TB</div><div class="text-lg font-bold text-green-600">${avgHieuQua.toFixed(1)}%</div></div>`;
+                        break;
+                    case 'DTQĐ':
+                    default:
+                         summaryMetricHtml = `<div><div class="text-xs text-gray-500">Tổng DTQĐ</div><div class="text-lg font-bold text-blue-600">${Math.floor(data.totalDtqd).toLocaleString('en-US')}</div></div>`;
+                        break;
+                }
+
+                row.innerHTML = `<div class="flex items-center gap-4"><h3 class="text-base font-bold text-gray-800">${department}</h3></div><div class="flex items-center space-x-4 text-right">${summaryMetricHtml}</div>`;
+                return row;
+            };
+
+            const createEmployeeRow = (employee, departmentData, headers, maxMetricValue) => {
+                const { rowData, rank, metrics } = employee;
+                const { dtlkThreshold, dtqdThreshold } = departmentData;
+                const row = document.createElement('div');
+                row.className = 'employee-row flex items-center px-4 py-2 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 hover:scale-[1.02] transition-all duration-300 row-animate';
+                
+                let rankContent = '';
+                if (rank === 1) rankContent = '<i class="fas fa-medal text-2xl text-yellow-400"></i>';
+                else if (rank === 2) rankContent = '<i class="fas fa-medal text-2xl text-gray-400"></i>';
+                else if (rank === 3) rankContent = '<i class="fas fa-medal text-2xl text-orange-500"></i>';
+                else rankContent = `<span class="text-xl font-bold">${rank}</span>`;
+                
+                const name = rowData[0] || '';
+                const shortenedName = shortenEmployeeName(name);
+                let metricsHtml = '';
+                
+                headers.forEach((header, index) => {
+                    if (index === 0 || header === currentSort.key) return;
+                    
+                    let formattedCell = rowData[index] || '';
+                    let valueClass = 'font-semibold text-gray-700';
+
+                    if (header === 'Hiệu quả QĐ') {
+                        const num = metrics['Hiệu quả QĐ'] * 100;
+                        formattedCell = !isNaN(num) ? `${parseFloat(num.toFixed(1))}%` : formattedCell;
+                        if (num < 35) valueClass = 'font-bold text-red-600';
+                        else if (num > 35) valueClass = 'font-bold text-green-600';
+                        else valueClass = 'font-bold text-gray-700';
+                    } else if (header === 'DTLK') {
+                        const num = metrics.DTLK;
+                        formattedCell = !isNaN(num) ? Math.floor(num).toLocaleString('en-US') : formattedCell;
+                        if (num <= dtlkThreshold) valueClass = 'font-semibold text-red-600';
+                    } else if (header === 'DTQĐ') {
+                         const num = metrics.DTQĐ;
+                        formattedCell = !isNaN(num) ? Math.floor(num).toLocaleString('en-US') : formattedCell;
+                        if (num <= dtqdThreshold) valueClass = 'font-semibold text-red-600';
+                    }
+                    if(header) metricsHtml += `<span class="whitespace-nowrap mr-4">${header}: <strong class="${valueClass}">${formattedCell}</strong></span>`;
+                });
+                
+                let mainMetricLabel = '';
+                let mainMetricValue = '';
+                let mainMetricClass = '';
+
+                switch (currentSort.key) {
+                    case 'DTLK':
+                        mainMetricLabel = 'DTLK';
+                        mainMetricValue = Math.floor(metrics.DTLK).toLocaleString('en-US');
+                        mainMetricClass = 'text-xl font-extrabold text-blue-600';
+                        if (metrics.DTLK <= dtlkThreshold) mainMetricClass = 'text-xl font-extrabold text-red-600';
+                        break;
+                    case 'Hiệu quả QĐ':
+                        mainMetricLabel = 'HQQĐ';
+                        const hieuquaNum = metrics['Hiệu quả QĐ'] * 100;
+                        mainMetricValue = `${parseFloat(hieuquaNum.toFixed(1))}%`;
+                        if (hieuquaNum < 35) mainMetricClass = 'text-xl font-extrabold text-red-600';
+                        else if (hieuquaNum > 35) mainMetricClass = 'text-xl font-extrabold text-green-600';
+                        else mainMetricClass = 'text-xl font-extrabold text-gray-700';
+                        break;
+                    case 'DTQĐ':
+                    default:
+                        mainMetricLabel = 'DTQĐ';
+                        mainMetricValue = Math.floor(metrics.DTQĐ).toLocaleString('en-US');
+                        mainMetricClass = 'text-xl font-extrabold text-blue-600';
+                        if (metrics.DTQĐ <= dtqdThreshold) mainMetricClass = 'text-xl font-extrabold text-red-600';
+                        break;
+                }
+                
+                const progressPercentage = maxMetricValue > 0 ? (metrics[currentSort.key] / maxMetricValue) * 100 : 0;
+                const progressColor = mainMetricClass.includes('red') ? 'bg-red-500' : (mainMetricClass.includes('green') ? 'bg-green-500' : 'bg-blue-500');
+
+
+                row.innerHTML = `<div class="flex items-center justify-center w-12 text-gray-400">${rankContent}</div>
+                <div class="flex-grow min-w-0 pr-4">
+                    <h4 class="font-bold text-base text-gray-800 truncate">${shortenedName}</h4>
+                    <div class="text-xs mt-1 text-gray-500">${metricsHtml}</div>
+                     <div class="progress-bar-container mt-2">
+                        <div class="progress-bar ${progressColor}" style="width: ${progressPercentage}%"></div>
+                    </div>
+                </div>
+                <div class="text-right w-28 flex-shrink-0">
+                    <div class="text-xs text-gray-500">${mainMetricLabel}</div>
+                    <div class="${mainMetricClass}">${mainMetricValue}</div>
+                </div>`;
+                return row;
+            };
+
+            let departmentsData = new Map();
+
+            const renderDoanhThuResults = (headers) => {
+                processedHeaders = headers;
+                const resultsContainer = document.getElementById('results-container-doanhthu');
+                updateTitles();
+                
+                const dataToRender = selectedDepartments.length > 0
+                    ? employeeData.filter(emp => selectedDepartments.includes(emp.department))
+                    : employeeData;
+
+                const maxMetricValue = Math.max.apply(null, dataToRender.map(emp => emp.metrics[currentSort.key]).concat([0]));
+
+                departmentsData.clear();
+                dataToRender.forEach(emp => {
+                    const department = emp.department;
+                    if (!departmentsData.has(department)) {
+                        departmentsData.set(department, { employees: [], totalDtqd: 0, totalDtlk: 0, totalHieuQuaQD: 0 });
+                    }
+                    const deptData = departmentsData.get(department);
+                    deptData.employees.push(emp);
+                    deptData.totalDtqd += emp.metrics.DTQĐ;
+                    deptData.totalDtlk += emp.metrics.DTLK;
+                    deptData.totalHieuQuaQD += emp.metrics['Hiệu quả QĐ'];
+                });
+
+                // Sort and rank employees WITHIN each department
+                departmentsData.forEach((deptData, department) => {
+                    deptData.employees.sort((a, b) => {
+                        const valA = a.metrics[currentSort.key];
+                        const valB = b.metrics[currentSort.key];
+                        return currentSort.order === 'desc' ? valB - valA : valA - valB;
+                    }).forEach((emp, index) => {
+                        emp.rank = index + 1;
+                    });
+                });
+                
+                const fullDepartmentsData = new Map();
+                employeeData.forEach(emp => {
+                    const department = emp.department;
+                    if (!fullDepartmentsData.has(department)) {
+                        fullDepartmentsData.set(department, { employees: [] });
+                    }
+                    fullDepartmentsData.get(department).employees.push(emp);
+                });
+
+                fullDepartmentsData.forEach((data) => {
+                    const employees = data.employees;
+                    const count = employees.length;
+                    if (count > 0) {
+                        const bottomCount = Math.max(1, Math.floor(count * 0.3));
+                        const sortedByDtlk = [...employees].sort((a, b) => a.metrics.DTLK - b.metrics.DTLK);
+                        const dtlkEmployee = sortedByDtlk[bottomCount - 1];
+                        data.dtlkThreshold = dtlkEmployee ? dtlkEmployee.metrics.DTLK : undefined;
+
+                        const sortedByDtqd = [...employees].sort((a, b) => a.metrics.DTQĐ - b.metrics.DTQĐ);
+                        const dtqdEmployee = sortedByDtqd[bottomCount - 1];
+                        data.dtqdThreshold = dtqdEmployee ? dtqdEmployee.metrics.DTQĐ : undefined;
+                    }
+                });
+                
+                resultsContainer.innerHTML = ''; 
+                if (dataToRender.length === 0) {
+                    resultsContainer.innerHTML = `<p class="text-center text-gray-500">Không có dữ liệu để hiển thị.</p>`;
+                    return;
+                }
+                let animationIndex = 0;
+                
+                departmentsData.forEach((data, department) => {
+                    const departmentGroup = document.createElement('div');
+                    departmentGroup.className = 'department-group';
+                    departmentGroup.dataset.department = department;
+                    const fullDeptData = fullDepartmentsData.get(department) || {};
+                    departmentGroup.appendChild(createDepartmentSummaryRow(department, data));
+                    
+                    const employeeList = document.createElement('div');
+                    employeeList.className = 'space-y-1 mt-2';
+                    departmentGroup.appendChild(employeeList);
+
+                    data.employees.forEach(emp => {
+                        const rowElement = createEmployeeRow(emp, fullDeptData, headers, maxMetricValue);
+                        rowElement.style.opacity = '0';
+                        rowElement.style.animationDelay = `${animationIndex++ * 40}ms`;
+                        employeeList.appendChild(rowElement);
+                    });
+                    resultsContainer.appendChild(departmentGroup);
+                });
+                
+                updateSortButtons();
+            };
+            
+            const resetThiDuaColumns = () => {
+                if(!thiDuaRawData.headers1) return;
+                thiDuaColumnOrderInfo = [];
+                 let { headers1 } = thiDuaRawData;
+                    if(headers1){
+                        for (let i = 1; i < headers1.length; i++) {
+                            if (headers1[i]) {
+                                let span = 1;
+                                while (i + span < headers1.length && !headers1[i + span]) span++;
+                                thiDuaColumnOrderInfo.push({ originalStartIndex: i, span });
+                                i += span - 1;
+                            }
+                        }
+                    }
+            };
+
+            const processAndRender = (showSuccessToast = false) => {
+                const activeTextarea = document.querySelector(`#tab-panel-${currentActiveTab} .data-textarea`);
+                if (!activeTextarea) return;
+                const text = activeTextarea.value;
+                
+                if (currentActiveTab === 'doanhthu') {
+                    const { headers } = processDoanhThuData(text);
+                    renderDoanhThuResults(headers);
+                    populateDepartmentFilter();
+                } else if (currentActiveTab === 'tragop') {
+                    const data = parseTragopData(text);
+                    renderTragopTable('results-container-tragop', data);
+                } else if (currentActiveTab === 'thidua') {
+                    const data = parseThiDuaData(text);
+                    thiDuaRawData = data;
+                    
+                    resetThiDuaColumns();
+
+                    populateThiDuaFilters();
+                }
+
+                if (showSuccessToast && text.trim()) {
+                    showToast('Đã xử lý dữ liệu thành công!');
+                }
+            };
+
+            const processAllTabsOnLoad = () => {
+                logDebug("Processing all tabs on initial load.");
+                const tabs = ['doanhthu', 'thidua', 'tragop'];
+                tabs.forEach(tabId => {
+                    const textarea = document.getElementById(`text-input-${tabId}`);
+                    if (!textarea || !textarea.value.trim()) return;
+                    const text = textarea.value;
+
+                    if (tabId === 'doanhthu') {
+                        const { headers } = processDoanhThuData(text);
+                        renderDoanhThuResults(headers);
+                        populateDepartmentFilter();
+                    } else if (tabId === 'tragop') {
+                        const data = parseTragopData(text);
+                        renderTragopTable('results-container-tragop', data);
+                    } else if (tabId === 'thidua') {
+                        const data = parseThiDuaData(text);
+                        thiDuaRawData = data; 
+                        resetThiDuaColumns();
+                        populateThiDuaFilters();
+                    }
+                });
+                if(document.getElementById('text-input-doanhthu').value.trim()){
+                    showToast('Dữ liệu mẫu đã được tải và xử lý!');
+                }
+            };
+            
+            const updateThiDuaTitle = () => {
+                const titleElement = document.getElementById('results-title-thidua');
+                if (!titleElement) return;
+
+                switch(currentThiDuaCriteriaType) {
+                    case 'All':
+                        titleElement.textContent = 'HIỆU QUẢ THI ĐUA NGÀNH HÀNG';
+                        break;
+                    case 'SLLK':
+                        titleElement.textContent = 'HIỆU QUẢ THI ĐUA NGÀNH HÀNG THEO TIÊU CHÍ SỐ LƯỢNG';
+                        break;
+                    case 'DTQĐ':
+                        titleElement.textContent = 'HIỆU QUẢ THI ĐUA NGÀNH HÀNG THEO TIÊU CHÍ DOANH THU QĐ';
+                        break;
+                    case 'DTLK':
+                        titleElement.textContent = 'HIỆU QUẢ THI ĐUA NGÀNH HÀNG THEO TIÊU CHÍ DOANH THU THỰC';
+                        break;
+                    default:
+                         titleElement.textContent = 'HIỆU QUẢ THI ĐUA NGÀNH HÀNG';
+                }
+            }
+
+
+            const renderThiDuaView = () => {
+                updateThiDuaTitle();
+                const container = document.getElementById('results-container-thidua');
+                const exportAllBtn = document.getElementById('export-all-thidua-btn');
+
+                container.className = 'space-y-4';
+                exportAllBtn.style.display = 'flex';
+                renderThiDuaByEmployeeView();
+            }
+
+
+            const renderThiDuaByEmployeeView = () => {
+                if (!thiDuaRawData || !thiDuaRawData.headers1 || !thiDuaRawData.body) {
+                    renderGenericTable('results-container-thidua', { headers1:[], headers2:[], body:[] });
+                    return;
+                }
+
+                let displayColumnInfos = [...thiDuaColumnOrderInfo];
+
+                displayColumnInfos = displayColumnInfos.filter(info => {
+                     const groupName = thiDuaRawData.headers1[info.originalStartIndex];
+                     return selectedThiDuaGroups.length === 0 || selectedThiDuaGroups.includes(groupName);
+                });
+
+                if (selectedThiDuaGroups.length > 0) {
+                    displayColumnInfos.sort((a, b) => {
+                        const groupA = thiDuaRawData.headers1[a.originalStartIndex];
+                        const groupB = thiDuaRawData.headers1[b.originalStartIndex];
+                        return selectedThiDuaGroups.indexOf(groupA) - selectedThiDuaGroups.indexOf(groupB);
+                    });
+                }
+                
+                if (currentThiDuaCriteriaType === 'All') {
+                    const criteriaOrder = { 'SLLK': 1, 'DTQĐ': 2, 'DTLK': 3 };
+                     displayColumnInfos.sort((a, b) => {
+                        const firstCriterionA = thiDuaRawData.headers2[a.originalStartIndex - 1];
+                        const firstCriterionB = thiDuaRawData.headers2[b.originalStartIndex - 1];
+                        const orderA = criteriaOrder[firstCriterionA] || 99;
+                        const orderB = criteriaOrder[firstCriterionB] || 99;
+                        return orderA - orderB;
+                    });
+                }
+
+                let displayHeaders1 = ['Phòng ban'];
+                let displayHeaders2 = []; 
+                let displayBody = thiDuaRawData.body.map(row => [row[0]]);
+
+                displayColumnInfos.forEach(info => {
+                    let tempGroupH1 = [];
+                    let tempGroupH2 = [];
+                    let tempBodyCols = Array.from({ length: thiDuaRawData.body.length }, () => []);
+
+                    for (let i = 0; i < info.span; i++) {
+                        const originalColIdx = info.originalStartIndex + i;
+                        if (!thiDuaRawData.headers2[originalColIdx - 1]) continue;
+                        const criteriaName = thiDuaRawData.headers2[originalColIdx - 1];
+                        const keepCriteria = currentThiDuaCriteriaType === 'All' || criteriaName === currentThiDuaCriteriaType;
+
+                        if (keepCriteria) {
+                            tempGroupH1.push(thiDuaRawData.headers1[originalColIdx] || '');
+                            tempGroupH2.push(criteriaName);
+                            thiDuaRawData.body.forEach((row, rowIndex) => {
+                                tempBodyCols[rowIndex].push(row[originalColIdx] || '');
+                            });
+                        }
+                    }
+
+                    if (tempGroupH2.length > 0) {
+                        displayHeaders1.push(...tempGroupH1);
+                        displayHeaders2.push(...tempGroupH2);
+                        displayBody.forEach((row, rowIndex) => {
+                            row.push(...tempBodyCols[rowIndex]);
+                        });
+                    }
+                });
+                
+                let filteredBody = displayBody;
+                
+                if (selectedThiDuaDepartments.length > 0) {
+                    const finalBody = [];
+                    let currentDept = '';
+                    let keepCurrentDept = false;
+                    filteredBody.forEach(row => {
+                        const firstCell = row[0] || '';
+                        const isDeptRow = firstCell.toLowerCase().startsWith('bp ') || firstCell.toLowerCase().includes('tổng');
+                        if(isDeptRow) {
+                            currentDept = firstCell;
+                            keepCurrentDept = selectedThiDuaDepartments.includes(currentDept);
+                        }
+                        if(keepCurrentDept) {
+                            finalBody.push(row);
+                        }
+                    });
+                    filteredBody = finalBody;
+                }
+
+                const departmentStats = new Map();
+                let currentDeptForStats = null;
+                filteredBody.forEach(row => {
+                    const firstCell = (row[0] || '').toLowerCase();
+                    const isDeptRow = firstCell.startsWith('bp ') || firstCell.includes('tổng');
+
+                    if (isDeptRow) {
+                        currentDeptForStats = row[0];
+                        departmentStats.set(currentDeptForStats, { columns: {} });
+                    } else if (currentDeptForStats && !isDeptRow && !firstCell.includes('tổng')) { // Only for employees
+                        const stats = departmentStats.get(currentDeptForStats);
+                        row.forEach((cell, index) => {
+                            if (index === 0) return; 
+                            const value = parseFloat(String(cell).replace(/,/g, ''));
+                            if (isNaN(value)) return;
+
+                            if (!stats.columns[index]) {
+                                stats.columns[index] = { values: [] };
+                            }
+                            stats.columns[index].values.push(value);
+                        });
+                    }
+                });
+
+                departmentStats.forEach(stats => {
+                    for (const key in stats.columns) {
+                        const col = stats.columns[key];
+                        const numericValues = col.values.filter(v => v > 0); 
+                        
+                        if (numericValues.length > 0) {
+                            col.average = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+                            const sortedUniqueValues = [...new Set(numericValues)].sort((a, b) => b - a);
+                            col.top1 = sortedUniqueValues[0];
+                            col.top2 = sortedUniqueValues[1];
+                            col.top3 = sortedUniqueValues[2];
+                        } else {
+                            col.average = 0;
+                            col.top1 = col.top2 = col.top3 = undefined;
+                        }
+                    }
+                });
+
+                let enrichedBody = filteredBody.map((row, rowIndex) => {
+                    const isDeptRow = (row[0] || '').toLowerCase().startsWith('bp ');
+                    const isTotalRow = (row[0] || '').toLowerCase().includes('tổng');
+                    if(isDeptRow || isTotalRow) {
+                        return { rowData: row, score: -Infinity, display: null }; 
+                    }
+
+                    const totalColumns = displayHeaders2.length;
+                    if (totalColumns === 0) {
+                        return { rowData: row, score: -1, display: null };
+                    }
+
+                    let belowAverageCount = 0;
+                    let currentDeptForCalc = '';
+                    for (let i = rowIndex; i >= 0; i--) {
+                        const potentialDept = filteredBody[i][0];
+                        if (potentialDept.toLowerCase().startsWith('bp ')) {
+                            currentDeptForCalc = potentialDept;
+                            break;
+                        }
+                    }
+                    
+                    const deptStats = departmentStats.get(currentDeptForCalc);
+                    if(deptStats){
+                        row.slice(1).forEach((cell, index) => {
+                            const value = parseFloat(String(cell).replace(/,/g, ''));
+                            const colStats = deptStats.columns[index + 1];
+                            if (colStats && !isNaN(value) && value > 0 && value < colStats.average) {
+                                belowAverageCount++;
+                            }
+                        });
+                    }
+
+                    const aboveAverageCount = totalColumns - belowAverageCount;
+                    return {
+                        rowData: row,
+                        score: totalColumns > 0 ? aboveAverageCount / totalColumns : 0,
+                        display: `${aboveAverageCount}/${totalColumns}`
+                    };
+                });
+
+                // Calculate ranks and bottom 30% within each department
+                const employeeGroups = new Map();
+                let currentDeptForRank = null;
+                enrichedBody.forEach(item => {
+                    const firstCell = (item.rowData[0] || '').toLowerCase();
+                    if (firstCell.startsWith('bp ')) {
+                        currentDeptForRank = item.rowData[0];
+                        if (!employeeGroups.has(currentDeptForRank)) {
+                            employeeGroups.set(currentDeptForRank, []);
+                        }
+                    } else if (currentDeptForRank && !firstCell.startsWith('bp ') && !firstCell.includes('tổng')) {
+                        employeeGroups.get(currentDeptForRank).push(item);
+                    }
+                });
+                employeeGroups.forEach(group => {
+                    group.sort((a, b) => b.score - a.score);
+                    group.forEach((item, index) => {
+                        item.rank = index + 1;
+                    });
+                     const warnCount = Math.ceil(group.length * 0.3);
+                    const rankThreshold = group.length - warnCount;
+                    group.forEach(item => {
+                        if (item.rank > rankThreshold) {
+                            item.isBottom30 = true;
+                        }
+                    });
+                });
+                
+                // Now apply user-defined sorting
+                const groups = [];
+                let currentGroup = null;
+
+                enrichedBody.forEach(item => {
+                     const firstCell = (item.rowData[0] || '').toLowerCase();
+                     if (firstCell.startsWith('bp ') || firstCell.includes('tổng')) {
+                         if (currentGroup) groups.push(currentGroup);
+                         currentGroup = { header: item, employees: [] };
+                     } else if (currentGroup) {
+                         currentGroup.employees.push(item);
+                     }
+                });
+                if (currentGroup) groups.push(currentGroup);
+                
+                groups.forEach(group => {
+                    group.employees.sort((a, b) => {
+                        if (thiDuaSort.key === 'effectiveness') {
+                            const valA = a.score ?? -1;
+                            const valB = b.score ?? -1;
+                            return thiDuaSort.order === 'desc' ? valB - valA : valA - valB;
+                        } 
+                        
+                        let sortIndex = -1;
+                        if (thiDuaSort.key === '_name') {
+                            sortIndex = 0;
+                        } else {
+                             const criteriaIndex = displayHeaders2.indexOf(thiDuaSort.key);
+                             if(criteriaIndex !== -1) sortIndex = criteriaIndex + 1;
+                        }
+
+                        if (sortIndex !== -1) {
+                            if (sortIndex === 0) { // sort by name
+                                const valA = a.rowData[sortIndex] || '';
+                                const valB = b.rowData[sortIndex] || '';
+                                return thiDuaSort.order === 'desc' ? valB.localeCompare(valA, 'vi') : valA.localeCompare(valB, 'vi');
+                            } else { // sort by metric
+                                const valA = parseFloat((a.rowData[sortIndex] || '0').replace(/,/g, ''));
+                                const valB = parseFloat((b.rowData[sortIndex] || '0').replace(/,/g, ''));
+                                if (isNaN(valA) && isNaN(valB)) return 0;
+                                if (isNaN(valA)) return 1;
+                                if (isNaN(valB)) return -1;
+                                return thiDuaSort.order === 'desc' ? valB - valA : valA - valB;
+                            }
+                        }
+                        return 0;
+                    });
+                });
+
+                enrichedBody = [];
+                groups.forEach(group => {
+                    enrichedBody.push(group.header);
+                    enrichedBody.push(...group.employees);
+                });
+                
+                renderGenericTable('results-container-thidua', {
+                    columnInfos: displayColumnInfos,
+                    headers1: displayHeaders1,
+                    headers2: displayHeaders2,
+                    body: enrichedBody,
+                    stats: departmentStats
+                });
+            };
+
+            const updateCriteriaTabsAndFilter = () => {
+                const criteriaTabsContainer = document.getElementById('thidua-criteria-tabs');
+                // Update button styles
+                criteriaTabsContainer.querySelectorAll('.criteria-tab-btn').forEach(button => {
+                    const type = button.dataset.criteriaType;
+                    button.classList.toggle('active', currentThiDuaCriteriaType === type);
+                });
+                
+                updateThiDuaTitle();
+
+                renderThiDuaView();
+            };
+
+            const populateThiDuaFilters = () => {
+                const deptContainer = document.getElementById('thidua-department-filter-container');
+                const groupContainer = document.getElementById('thidua-group-filter-container');
+                const criteriaTabsContainer = document.getElementById('thidua-criteria-tabs');
+                
+                if (!thiDuaRawData || !thiDuaRawData.headers1 || thiDuaRawData.headers1.length === 0) {
+                      deptContainer.innerHTML = '<p class="text-gray-400 text-sm">Chưa có dữ liệu để lọc...</p>';
+                      groupContainer.innerHTML = '<p class="text-gray-400 text-sm">Chưa có dữ liệu để lọc...</p>';
+                    return;
+                }
+
+                const departments = [...new Set(thiDuaRawData.body.map(row => row[0]).filter(cell => cell.toLowerCase().startsWith('bp ') || cell.toLowerCase().includes('tổng')))];
+                 deptContainer.innerHTML = departments.map(dept => `
+                     <button data-dept="${dept}" class="filter-pill thidua-dept-pill px-3 py-1 text-sm font-medium rounded-full border bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200">
+                         ${dept}
+                    </button>
+                `).join('');
+
+
+                document.querySelectorAll('.thidua-dept-pill').forEach(btn => btn.addEventListener('click', () => {
+                    btn.classList.toggle('active');
+                    selectedThiDuaDepartments = [...document.querySelectorAll('.thidua-dept-pill.active')].map(el => el.dataset.dept);
+                    renderThiDuaView();
+                }));
+
+                const groups = [...new Set(thiDuaRawData.headers1.slice(1).filter(g => g && g.trim()))];
+                groupContainer.innerHTML = groups.map(group => `
+                     <button data-group="${group}" class="filter-pill thidua-group-pill px-3 py-1 text-sm font-medium rounded-full border bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200">
+                         ${group}
+                    </button>
+                `).join('');
+                
+                document.querySelectorAll('.thidua-group-pill').forEach(btn => btn.addEventListener('click', () => {
+                    btn.classList.toggle('active');
+                    const groupName = btn.dataset.group;
+                    const isNowActive = btn.classList.contains('active');
+
+                    if (isNowActive) {
+                        if (!selectedThiDuaGroups.includes(groupName)) {
+                            selectedThiDuaGroups.push(groupName);
+                        }
+                    } else {
+                        selectedThiDuaGroups = selectedThiDuaGroups.filter(g => g !== groupName);
+                    }
+                    renderThiDuaView();
+                }));
+
+                criteriaTabsContainer.addEventListener('click', (e) => {
+                    const button = e.target.closest('.criteria-tab-btn');
+                    if (!button) return;
+                    currentThiDuaCriteriaType = button.dataset.criteriaType;
+                    updateCriteriaTabsAndFilter();
+                });
+                
+                document.getElementById('thidua-dept-select-all').addEventListener('click', () => {
+                    document.querySelectorAll('.thidua-dept-pill').forEach(b => b.classList.add('active'));
+                    selectedThiDuaDepartments = departments;
+                    renderThiDuaView();
+                });
+                 document.getElementById('thidua-dept-deselect-all').addEventListener('click', () => {
+                    document.querySelectorAll('.thidua-dept-pill').forEach(b => b.classList.remove('active'));
+                    selectedThiDuaDepartments = [];
+                    renderThiDuaView();
+                });
+                document.getElementById('thidua-group-select-all').addEventListener('click', () => {
+                    document.querySelectorAll('.thidua-group-pill').forEach(b => b.classList.add('active'));
+                    selectedThiDuaGroups = groups;
+                    renderThiDuaView();
+                });
+                 document.getElementById('thidua-group-deselect-all').addEventListener('click', () => {
+                    document.querySelectorAll('.thidua-group-pill').forEach(b => b.classList.remove('active'));
+                    selectedThiDuaGroups = [];
+                    renderThiDuaView();
+                });
+                 document.getElementById('thidua-reset-cols-btn').addEventListener('click', () => {
+                    resetThiDuaColumns();
+                    renderThiDuaView();
+                    showToast('Đã đặt lại thứ tự cột.');
+                });
+
+                // Set default view on load
+                updateCriteriaTabsAndFilter();
+            };
+
+            const updateSelectedText = () => {
+                if (selectedDepartments.length === 0) {
+                    selectedText.textContent = 'Chọn một hoặc nhiều bộ phận';
+                    selectedText.classList.add('text-gray-500');
+                    selectedText.classList.remove('text-gray-900');
+                } else if (selectedDepartments.length === 1) {
+                    selectedText.textContent = selectedDepartments[0];
+                    selectedText.classList.remove('text-gray-500');
+                    selectedText.classList.add('text-gray-900');
+                } else {
+                    selectedText.textContent = `Đã chọn ${selectedDepartments.length} bộ phận`;
+                    selectedText.classList.remove('text-gray-500');
+                    selectedText.classList.add('text-gray-900');
+                }
+            };
+
+            const populateDepartmentFilter = () => {
+                const departments = [...new Set(employeeData.map(e => e.department))];
+                optionsList.innerHTML = '';
+                departments.forEach(dept => {
+                    const li = document.createElement('li');
+                    li.className = 'p-2 hover:bg-gray-100 rounded-md';
+                    li.innerHTML = `<label class="flex items-center space-x-2 w-full cursor-pointer"><input type="checkbox" value="${dept}" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 department-checkbox"><span class="text-sm text-gray-800">${dept}</span></label>`;
+                    const checkbox = li.querySelector('.department-checkbox');
+                    if (selectedDepartments.includes(dept)) checkbox.checked = true;
+                    checkbox.addEventListener('change', (e) => {
+                        const deptName = e.target.value;
+                        if (e.target.checked) {
+                            if (!selectedDepartments.includes(deptName)) selectedDepartments.push(deptName);
+                        } else {
+                            selectedDepartments = selectedDepartments.filter(d => d !== deptName);
+                        }
+                        updateSelectedText();
+                        renderDoanhThuResults(processedHeaders);
+                    });
+                    optionsList.appendChild(li);
+                });
+                updateSelectedText();
+            };
+            
+            const updateSortButtons = () => {
+                document.querySelectorAll('.sort-btn').forEach(btn => {
+                    const key = btn.dataset.key;
+                    btn.classList.remove('bg-blue-500', 'text-white');
+                    btn.classList.add('bg-gray-200', 'text-gray-700');
+                    const icon = btn.querySelector('i');
+                    if (icon) icon.remove();
+                    if (key === currentSort.key) {
+                        btn.classList.add('bg-blue-500', 'text-white');
+                        btn.classList.remove('bg-gray-200', 'text-gray-700');
+                        const icon = document.createElement('i');
+                        icon.className = `fas fa-arrow-${currentSort.order === 'desc' ? 'down' : 'up'} ml-1`;
+                        btn.appendChild(icon);
+                    }
+                });
+            };
+            
+            // --- Saved Views Logic ---
+            const loadThiDuaViewsDropdown = async () => {
+                try {
+                    const views = await getAllViewsFromDB();
+                    savedViewsSelect.innerHTML = '<option value="">-- Chọn phiên bản để tải --</option>'; // Reset
+                    views.forEach(view => {
+                        const option = document.createElement('option');
+                        option.value = view.name;
+                        option.textContent = view.name;
+                        savedViewsSelect.appendChild(option);
+                    });
+                } catch(e) {
+                    console.error("Lỗi khi đọc từ IndexedDB:", e);
+                    showToast('Không thể tải các phiên bản đã lưu.', true);
+                }
+            };
+
+            const saveThiDuaView = async () => {
+                const name = viewNameInput.value.trim();
+                if (!name) {
+                    showToast('Vui lòng nhập tên cho phiên bản.', true);
+                    return;
+                }
+                
+                try {
+                    const newView = {
+                        name: name,
+                        columnOrderInfo: thiDuaColumnOrderInfo,
+                        selectedDepartments: selectedThiDuaDepartments,
+                        selectedGroups: selectedThiDuaGroups,
+                        criteriaType: currentThiDuaCriteriaType, // Save the active tab
+                        sort: thiDuaSort,
+                    };
+
+                    await saveViewToDB(newView);
+                    
+                    await loadThiDuaViewsDropdown();
+                    savedViewsSelect.value = name; // Select the newly saved view
+                    viewNameInput.value = ''; // Clear input
+                    showToast(`Đã lưu phiên bản "${name}" thành công!`);
+                } catch(e) {
+                    console.error("Lỗi khi lưu vào IndexedDB:", e);
+                    showToast('Không thể lưu phiên bản.', true);
+                }
+            };
+            
+            const updateThiDuaFilterPillsFromState = () => {
+                document.querySelectorAll('.thidua-dept-pill').forEach(pill => {
+                    pill.classList.toggle('active', selectedThiDuaDepartments.includes(pill.dataset.dept));
+                });
+                document.querySelectorAll('.thidua-group-pill').forEach(pill => {
+                    pill.classList.toggle('active', selectedThiDuaGroups.includes(pill.dataset.group));
+                });
+                // Note: Criteria pills are not managed here because they are tabs now
+            };
+
+            const loadThiDuaView = async () => {
+                const name = savedViewsSelect.value;
+                if (!name) {
+                    showToast('Vui lòng chọn một phiên bản để tải.', true);
+                    return;
+                }
+                try {
+                    const views = await getAllViewsFromDB();
+                    const viewToLoad = views.find(v => v.name === name);
+
+                    if (!viewToLoad) {
+                        showToast(`Không tìm thấy phiên bản "${name}".`, true);
+                        return;
+                    }
+
+                    // Restore state from saved view
+                    thiDuaColumnOrderInfo = viewToLoad.columnOrderInfo || [];
+                    selectedThiDuaDepartments = viewToLoad.selectedDepartments || [];
+                    selectedThiDuaGroups = viewToLoad.selectedGroups || [];
+                    thiDuaSort = viewToLoad.sort || { key: null, order: 'desc' };
+                    currentThiDuaCriteriaType = viewToLoad.criteriaType || 'SLLK'; // Restore the tab
+
+                    updateThiDuaFilterPillsFromState();
+                    updateCriteriaTabsAndFilter(); // Update UI and re-render with new state
+                    showToast(`Đã tải phiên bản "${name}".`);
+                } catch(e) {
+                    console.error("Lỗi khi tải phiên bản từ IndexedDB:", e);
+                    showToast('Không thể tải phiên bản đã lưu. Dữ liệu có thể bị lỗi.', true);
+                }
+            };
+
+            const deleteThiDuaView = async () => {
+                const name = savedViewsSelect.value;
+                if (!name) {
+                    showToast('Vui lòng chọn một phiên bản để xoá.', true);
+                    return;
+                }
+                try {
+                    await deleteViewFromDB(name);
+                    await loadThiDuaViewsDropdown();
+                    showToast(`Đã xoá phiên bản "${name}".`);
+                } catch(e) {
+                    console.error("Lỗi khi xoá phiên bản từ IndexedDB:", e);
+                    showToast('Không thể xoá phiên bản đã lưu.', true);
+                }
+            };
+
+
+            // --- Event Listeners ---
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabPanels = document.querySelectorAll('.tab-panel');
+            const resultsPanels = document.querySelectorAll('.results-panel');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('border-blue-500', 'text-blue-600');
+                        btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                    });
+                    tabPanels.forEach(panel => panel.classList.add('hidden'));
+                    resultsPanels.forEach(panel => panel.classList.add('hidden'));
+
+                    const tab = button.dataset.tab;
+                    currentActiveTab = tab;
+                    button.classList.add('border-blue-500', 'text-blue-600');
+                    button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                    
+                    const activeInputPanel = document.getElementById(`tab-panel-${tab}`);
+                    activeInputPanel.classList.remove('hidden');
+                    
+                    const activeResultsPanel = document.getElementById(`results-panel-${tab}`);
+                    activeResultsPanel.classList.remove('hidden');
+
+                    controlPanelDoanhThu.style.display = tab === 'doanhthu' ? 'block' : 'none';
+                    controlPanelThiDua.style.display = tab === 'thidua' ? 'block' : 'none';
+
+                    // Data is already processed on load, so no need to call processAndRender here unless data is empty
+                    const resultsContainer = activeResultsPanel.querySelector('.space-y-4, .grid');
+                    if (resultsContainer && resultsContainer.innerHTML.trim() === '') {
+                        processAndRender(false);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.data-textarea').forEach(textarea => {
+                textarea.addEventListener('input', () => processAndRender(true));
+            });
+            
+            document.querySelectorAll('.paste-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTextarea = document.getElementById(button.dataset.targetTextarea);
+                    targetTextarea.focus();
+                    showToast('Ô nhập liệu đã sẵn sàng, vui lòng nhấn Ctrl+V để dán.');
+                });
+            });
+
+             document.querySelectorAll('.clear-btn').forEach(button => {
+                 button.addEventListener('click', (e) => {
+                      const targetTextarea = document.getElementById(e.currentTarget.dataset.targetTextarea);
+                      targetTextarea.value = '';
+                      processAndRender(false); // Re-process to clear results
+                      showToast('Đã xoá dữ liệu.');
+                      targetTextarea.focus();
+                 });
+            });
+
+            sortControls.addEventListener('click', (e) => {
+                const button = e.target.closest('.sort-btn');
+                if (!button) return;
+                const sortKey = button.dataset.key;
+                if (currentSort.key === sortKey) {
+                    currentSort.order = currentSort.order === 'desc' ? 'asc' : 'desc';
+                } else {
+                    currentSort.key = sortKey;
+                    currentSort.order = 'desc';
+                }
+                renderDoanhThuResults(processedHeaders);
+            });
+
+            const captureAndDownload = (captureElement, fileName, buttonElement) => {
+                if (!captureElement) {
+                    console.error("Capture area not found for export.");
+                    showToast("Lỗi: Không tìm thấy vùng để xuất ảnh.");
+                    return;
+                }
+
+                const loadingOverlay = document.getElementById('loading-overlay');
+                const originalButtonHtml = buttonElement.innerHTML;
+
+                // Show loading indicators
+                loadingOverlay.classList.remove('hidden');
+                buttonElement.disabled = true;
+                buttonElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+                const body = document.body;
+                body.classList.add('is-capturing');
+                window.scrollTo(0, 0);
+
+                // Give a short delay for styles to apply and UI to settle
+                setTimeout(() => {
+                    html2canvas(captureElement, {
+                        scale: 5,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        onclone: (clonedDoc) => {
+                            const panel = clonedDoc.getElementById(captureElement.id);
+                            if (!panel) return;
+
+                             // Fix for sticky headers causing alignment issues
+                            const stickyElements = panel.querySelectorAll('[class*="sticky"]');
+                            stickyElements.forEach(el => {
+                                el.style.position = 'static';
+                            });
+
+                            // Ensure full table width is captured for overflowing tables
+                            const tableContainer = panel.querySelector('.overflow-x-auto');
+                            if (tableContainer) {
+                                tableContainer.style.overflow = 'visible';
+                                tableContainer.style.width = 'auto';
+                                panel.style.width = 'fit-content';
+                            } else {
+                                // For non-table layouts (like Doanh Thu), shrink to fit content
+                                panel.style.width = 'fit-content';
+                                panel.style.minWidth = '700px'; 
+                            }
+                        }
+                    }).then(canvas => {
+                        const link = document.createElement('a');
+                        link.download = fileName;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        showToast('Đã xuất ảnh thành công!');
+                    }).catch(err => {
+                        console.error("html2canvas error:", err);
+                        showToast("Có lỗi xảy ra khi xuất ảnh.");
+                    }).finally(() => {
+                        // Hide loading indicators and cleanup
+                        body.classList.remove('is-capturing');
+                        loadingOverlay.classList.add('hidden');
+                        buttonElement.disabled = false;
+                        buttonElement.innerHTML = originalButtonHtml;
+                    });
+                }, 250);
+            };
+            
+            document.getElementById('export-doanhthu-btn').addEventListener('click', (e) => {
+                const captureArea = document.getElementById('results-panel-doanhthu');
+                captureAndDownload(captureArea, 'bao-cao-doanh-thu.png', e.currentTarget);
+            });
+
+            document.getElementById('export-thidua-btn').addEventListener('click', (e) => {
+                const captureArea = document.getElementById('results-panel-thidua');
+                captureAndDownload(captureArea, 'bao-cao-thi-dua.png', e.currentTarget);
+            });
+
+            const exportAllThiDuaBtn = document.getElementById('export-all-thidua-btn');
+            const delay = ms => new Promise(res => setTimeout(res, ms));
+
+            exportAllThiDuaBtn.addEventListener('click', async () => {
+                const originalCriteriaType = currentThiDuaCriteriaType;
+                const criteriaToExport = ['All', 'SLLK', 'DTQĐ', 'DTLK'];
+                const loadingOverlay = document.getElementById('loading-overlay');
+                
+                loadingOverlay.classList.remove('hidden');
+                exportAllThiDuaBtn.disabled = true;
+                const originalBtnHtml = exportAllThiDuaBtn.innerHTML;
+                exportAllThiDuaBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+
+                try {
+                    for (const criteria of criteriaToExport) {
+                        const tabToClick = document.querySelector(`.criteria-tab-btn[data-criteria-type="${criteria}"]`);
+                        if(tabToClick) tabToClick.click();
+                        await delay(500); 
+
+                        const captureArea = document.getElementById('results-panel-thidua');
+                        const canvas = await html2canvas(captureArea, {
+                             scale: 5, useCORS: true, backgroundColor: '#ffffff',
+                             onclone: (clonedDoc) => {
+                                const panel = clonedDoc.getElementById(captureArea.id);
+                                if(!panel) return;
+                                const stickyElements = panel.querySelectorAll('[class*="sticky"]');
+                                stickyElements.forEach(el => { el.style.position = 'static'; });
+                                const tableContainer = panel.querySelector('.overflow-x-auto');
+                                if (tableContainer) {
+                                    tableContainer.style.overflow = 'visible';
+                                    tableContainer.style.width = 'auto';
+                                    panel.style.width = 'fit-content';
+                                }
+                            }
+                        });
+
+                        const link = document.createElement('a');
+                        link.download = `bao-cao-thi-dua-${criteria}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        
+                        await delay(300); 
+                    }
+                    showToast('Đã xuất tất cả báo cáo thành công!');
+                } catch (err) {
+                    console.error("Lỗi khi xuất hàng loạt:", err);
+                    showToast("Có lỗi xảy ra khi xuất hàng loạt.", true);
+                } finally {
+                     const originalTab = document.querySelector(`.criteria-tab-btn[data-criteria-type="${originalCriteriaType}"]`);
+                     if(originalTab) {
+                        originalTab.click();
+                     } else {
+                        const fallbackTab = document.querySelector(`.criteria-tab-btn[data-criteria-type="All"]`);
+                        if(fallbackTab) fallbackTab.click();
+                     }
+                    loadingOverlay.classList.add('hidden');
+                    exportAllThiDuaBtn.disabled = false;
+                    exportAllThiDuaBtn.innerHTML = originalBtnHtml;
+                }
+            });
+
+
+            // --- Event Listeners for Dropdowns ---
+            filterBtn.addEventListener('click', () => filterPanel.classList.toggle('hidden'));
+            
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                optionsList.querySelectorAll('li').forEach(li => {
+                    li.style.display = li.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
+                });
+            });
+
+
+            window.addEventListener('click', (e) => {
+                if (customSelectContainer && !customSelectContainer.contains(e.target)) {
+                    const filterPanel = document.getElementById('department-filter-panel');
+                    if(filterPanel) filterPanel.classList.add('hidden');
+                }
+                const thiduaSelectContainer = document.getElementById('thidua-select-container');
+                if (thiduaSelectContainer && !thiduaSelectContainer.contains(e.target)) {
+                    const thiduaFilterPanel = document.getElementById('thidua-department-filter-panel');
+                    if(thiduaFilterPanel) thiduaFilterPanel.classList.add('hidden');
+                }
+            });
+
+            // --- Changelog Modal Logic ---
+            const versionBadge = document.getElementById('version-badge');
+            const changelogModal = document.getElementById('changelog-modal');
+            const closeChangelogModalBtn = document.getElementById('close-changelog-modal');
+
+            if (versionBadge && changelogModal && closeChangelogModalBtn) {
+                versionBadge.addEventListener('click', () => {
+                    changelogModal.classList.remove('hidden');
+                });
+
+                closeChangelogModalBtn.addEventListener('click', () => {
+                    changelogModal.classList.add('hidden');
+                });
+
+                changelogModal.addEventListener('click', (e) => {
+                    // Close if clicked on the overlay background
+                    if (e.target === changelogModal) {
+                        changelogModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // --- Initial Load & Storage Check ---
+            async function initializeApp() {
+                const viewManagementSection = document.getElementById('thidua-view-name-input').closest('div.p-3');
+                try {
+                    await initDB();
+                    await loadThiDuaViewsDropdown();
+                    
+                     const viewManagementContainer = document.getElementById('thidua-saved-views-select').parentElement;
+                     if(viewManagementContainer && viewManagementContainer.nextElementSibling && !viewManagementContainer.nextElementSibling.classList.contains('storage-warning')) {
+                        const warning = document.createElement('p');
+                        warning.className = "text-xs text-gray-500 mt-2 storage-warning";
+                        warning.innerHTML = `Lưu ý: Dữ liệu được lưu trên trình duyệt này. Sẽ bị mất nếu dùng chế độ ẩn danh hoặc xoá dữ liệu duyệt web.`;
+                        viewManagementContainer.insertAdjacentElement('afterend', warning);
+                    }
+                } catch(error) {
+                    let message = 'Tính năng quản lý phiên bản không hoạt động do bộ nhớ trình duyệt bị tắt hoặc không được hỗ trợ (ví dụ: chế độ ẩn danh).';
+                     if (viewManagementSection) {
+                        viewManagementSection.innerHTML = `<p class="text-sm text-center text-red-600 p-2 bg-red-50 rounded-md">${message}</p>`;
+                     }
+                }
+                
+                processAllTabsOnLoad();
+
+                debugCheckbox.addEventListener('change', () => {
+                    debugContainer.classList.toggle('hidden', !debugCheckbox.checked);
+                });
+
+                // Event listeners for saved views
+                saveViewBtn.addEventListener('click', saveThiDuaView);
+                loadViewBtn.addEventListener('click', loadThiDuaView);
+                deleteViewBtn.addEventListener('click', deleteThiDuaView);
+            }
+
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
